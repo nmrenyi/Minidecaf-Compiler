@@ -1,9 +1,12 @@
 import antlr4
+import sys
 from .generated.MiniDecafLexer import MiniDecafLexer
 from .generated.MiniDecafParser import MiniDecafParser
 from .generated.MiniDecafVisitor import MiniDecafVisitor
 from minidecaf.IRContainer import IRContainer
-from minidecaf.GenIR import GenIR
+from minidecaf.IRGenerator import IRGenerator
+from minidecaf.AsmWriter import AsmWriter
+from minidecaf.AsmGenerator import AsmGenerator
 
 def Parser(tokenStream):
     parser = MiniDecafParser(tokenStream)
@@ -16,22 +19,21 @@ def Lexer(inputStream):
     tokenStream = antlr4.CommonTokenStream(lexer)
     return tokenStream
 
-def irGenerator(tree):
+def GenIR(tree):
     irContainer = IRContainer()
-    GenIR(irContainer).visit(tree)
-    return irContainer.getIR()
+    IRGenerator(irContainer).visit(tree)
+    return irContainer
 
+def GenAsm(ir:IRContainer, output_file:str):
+    asmWriter = AsmWriter(output_file)
+    asmGenerator = AsmGenerator(asmWriter)
+    asmGenerator.generate(ir)
+    asmWriter.close()
 
 def main():
     inputStream = antlr4.FileStream('multi_digit.c')
     tokenStream = Lexer(inputStream)
     tree = Parser(tokenStream)
-    ir = irGenerator(tree)
+    ir = GenIR(tree)
     print(ir)
-    # print("""\
-    #         .text
-    #         .globl  main
-    # main:
-    #         li      a0,123
-    #         ret\
-    # """)
+    GenAsm(ir, 'myFirstAsm.S')
