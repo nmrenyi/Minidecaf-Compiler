@@ -1,5 +1,9 @@
 from minidecaf.AsmCommand import AsmCommand
 class AsmWriter:
+    '''
+    a writer for asm commands
+    self.f can be sys.stdout or a file handler
+    '''
     def __init__(self, fout):
         self.f = fout
     

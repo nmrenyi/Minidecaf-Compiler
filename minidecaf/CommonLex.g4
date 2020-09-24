@@ -1,4 +1,4 @@
-// 祖传 lex
+// using lex from TA's reference implementation
 lexer grammar CommonLex;
 
 Integer: Digit+;

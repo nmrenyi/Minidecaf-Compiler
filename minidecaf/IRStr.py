@@ -1,11 +1,17 @@
 
 class BaseIRStr:
+    '''
+    base class for different IR types, with genAsm() method to generate asm commands according to the IR type
+    '''
     def __repr__(self):
         return self.__str__()
     def genAsm(self):
         pass
 
 class Const(BaseIRStr):
+    '''
+    push an integer onto the ir stack
+    '''
     def __init__(self, v:int):
         # range check
         MIN_INT = -2 ** 31
@@ -21,6 +27,9 @@ class Const(BaseIRStr):
         return [f"addi sp, sp, -4", f"li t1, {self.v}", f"sw t1, 0(sp)"]
 
 class Ret(BaseIRStr):
+    '''
+    return an integer from the ir stack
+    '''
     def __str__(self):
         return f"ret"
     def genAsm(self):

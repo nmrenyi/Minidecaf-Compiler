@@ -1,3 +1,6 @@
+# MiniDecaf Compiler Authored by Ren Yi 2018011423
+# The general structure references to TA's implementation.
+
 import antlr4
 import sys
 import argparse

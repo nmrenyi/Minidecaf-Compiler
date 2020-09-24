@@ -7,6 +7,10 @@ from minidecaf.AsmCommand import AsmInstruction
 from minidecaf.AsmCommand import AsmInstructionList
 
 class AsmGenerator:
+    '''
+    Asm Command Generator
+    generate asm commands from IR
+    '''
     def __init__(self, asmWriter:AsmWriter):
         self.writer = asmWriter
 
