@@ -18,15 +18,15 @@
 
 ### 思考题
 
-1. Q: 修改 `minilexer`的输入（`lexer.setInput` 的参数），使得 `lex` 报错，给出一个简短的例子。
+1. Q: 修改 minilexer的输入（lexer.setInput 的参数），使得 lex 报错，给出一个简短的例子。
 
-   A: 修改输入为中文字符即可使`lex`报错，例如输入"汉字"这两个中文字符，`lex`就会报错。
+   A: 修改输入为中文字符即可使lex报错，例如输入"汉字"这两个中文字符，lex就会报错。
 
    
 
-2. Q: 修改 `minilexer` 的输入，使得 `lex` 不报错但 `parser` 报错，给出一个简短的例子。
+2. Q: 修改 minilexer 的输入，使得 lex 不报错但 parser 报错，给出一个简短的例子。
 
-   A: 修改输入为`int main() {return ;}`即可使得`lex`不报错而`parser`报错
+   A: 修改输入为`int main() {return ;}`即可使得lex不报错而parser报错
 
    
 
