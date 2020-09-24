@@ -1,7 +1,7 @@
 from minidecaf.AsmCommand import AsmCommand
 class AsmWriter:
-    def __init__(self, output_file:str):
-        self.f = open(output_file, 'w', encoding='utf-8')
+    def __init__(self, fout):
+        self.f = fout
     
     def write(self, command: AsmCommand):
         print(f'{command}', file = self.f)
