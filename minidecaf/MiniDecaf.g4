@@ -20,6 +20,10 @@ stmt
     ;
 
 expr
-    : Integer
+    : unary
     ;
 
+unary
+    : Integer
+    | ('-'|'!'|'~') unary
+    ;
