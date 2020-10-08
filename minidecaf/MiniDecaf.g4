@@ -20,7 +20,7 @@ stmt
     ;
 
 expr
-    : unary
+    : additive
     ;
 
 unary
@@ -34,4 +34,23 @@ unaryOp
 
 intUnit
     : Integer
+    | '(' expr ')'
+    ;
+
+additive
+    : multiplicative
+    | additive addOp multiplicative
+    ;
+
+multiplicative
+    : unary
+    | multiplicative mulOp unary
+    ;
+
+addOp
+    : '+' | '-'
+    ;
+
+mulOp
+    : '*' | '/' | '%'
     ;

@@ -23,10 +23,22 @@ class IRGenerator(MiniDecafVisitor):
 
     def visitUnary(self, ctx:MiniDecafParser.UnaryContext):
         self.visitChildren(ctx)
-        if ctx.unary() is not None:
+        if ctx.unaryOp() is not None:
             self._container.add(IRStr.Unary(ctx.unaryOp().getText()))
     
     def visitIntUnit(self, ctx:MiniDecafParser.IntUnitContext):
-        v = int(ctx.Integer().getText())
-        self._container.add(IRStr.Const(v))
+        self.visitChildren(ctx)
+        if ctx.Integer() is not None:
+            v = int(ctx.Integer().getText())
+            self._container.add(IRStr.Const(v))
+
+    def visitAdditive(self, ctx:MiniDecafParser.AdditiveContext):
+        self.visitChildren(ctx)
+        if ctx.addOp() is not None:
+            self._container.add(IRStr.Binary(ctx.addOp().getText()))
+    
+    def visitMultiplicative(self, ctx:MiniDecafParser.MultiplicativeContext):
+        self.visitChildren(ctx)
+        if ctx.mulOp() is not None:
+            self._container.add(IRStr.Binary(ctx.mulOp().getText()))
 

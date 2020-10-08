@@ -38,7 +38,7 @@ class Ret(BaseIRStr):
 
 class Unary(BaseIRStr):
     '''
-    process unary operations
+    store unary operations
     '''
     ir_unary_ops = {'!':'lnot', '~':'not', '-':'neg'}
     asm_unary_ops = {'!':'seqz', '~':'not', '-':'neg'}
@@ -53,4 +53,27 @@ class Unary(BaseIRStr):
     
     def genAsm(self):
         return [f'lw t1, 0(sp)', f'{self.asm_unary_ops[self.op]} t1, t1', 'sw t1, 0(sp)']
+
+class Binary(BaseIRStr):
+    '''
+    store binary operations
+    '''
+    binary_ops = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '%': 'rem'}
+    def __init__(self, op:str):
+        '''
+        op is the str of '+', '-', '*', '/', '%'
+        '''
+        assert(op in self.binary_ops)
+        self.op = op
+    
+    def __str__(self):
+        return self.binary_ops[self.op]
+    
+    def genAsm(self):
+        return ['lw t1, 4(sp)', 
+                'lw t2, 0(sp)',
+                f'{self.binary_ops[self.op]} t1, t1, t2',
+                'addi sp, sp, 4',
+                'sw t1, 0(sp)'
+                ]
 
