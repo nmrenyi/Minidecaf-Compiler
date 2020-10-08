@@ -36,6 +36,15 @@ class Ret(BaseIRStr):
         # return value is saved in a0
         return [f"lw a0, 0(sp)", f"addi sp, sp, 4"]
 
-
+class Unary(BaseIRStr):
+    '''
+    process unary operations
+    '''
+    unary_ops = {'!':'lnot', '~':'not', '-':'neg'}
+    def __init__(self, op):
+        assert(op in self.unary_ops)
+        self.op = op
+    def __str__(self):
+        return self.unary_ops[self.op]
 
 

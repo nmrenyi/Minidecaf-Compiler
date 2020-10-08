@@ -17,7 +17,19 @@ class IRGenerator(MiniDecafVisitor):
 
     def visitExpr(self, ctx:MiniDecafParser.ExprContext):
         # what if the expression not a simple integer, but a function or arithmetic expression like (1+2)?
-        v = int(ctx.Integer().getText())
-        self._container.add(IRStr.Const(v))
+        self.visitChildren(ctx)
+        # v = int(ctx.Integer().getText())
+        # self._container.add(IRStr.Const(v))
 
+    def visitUnary(self, ctx:MiniDecafParser.UnaryContext):
+        # print('unary:',ctx.unary().getText())
+        self.visitChildren(ctx)
+        print('integer:',ctx.Integer())
+        if (ctx.unaryOp() is None):
+            print('unary:',ctx.unaryOp())
+        else:
+            print('unary',ctx.unaryOp().getText())
+
+        if ctx.unary() is not None:
+            self._container.add(IRStr.Unary(ctx.unaryOp().getText()))
 

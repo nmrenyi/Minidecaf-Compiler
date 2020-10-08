@@ -24,6 +24,14 @@ expr
     ;
 
 unary
+    : int_unit
+    | unaryOp unary
+    ;
+
+unaryOp
+    : '-' | '!' | '~'
+    ;
+
+int_unit
     : Integer
-    | ('-'|'!'|'~') unary
     ;
