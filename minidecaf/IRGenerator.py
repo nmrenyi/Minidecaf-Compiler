@@ -1,7 +1,6 @@
 from .generated.MiniDecafVisitor import MiniDecafVisitor
 from .generated.MiniDecafParser import MiniDecafParser
 import minidecaf.IRStr as IRStr
-
 class IRGenerator(MiniDecafVisitor):
     '''
     A visitor for going through the whole ast, inherited from MiniDecafVisitor
@@ -42,3 +41,26 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.mulOp() is not None:
             self._container.add(IRStr.Binary(ctx.mulOp().getText()))
 
+    def visitLogicalAnd(self, ctx:MiniDecafParser.LogicalAndContext):
+        self.visitChildren(ctx)
+        if ctx.andOp() is not None:
+            self._container.add(IRStr.Binary(ctx.andOp().getText()))
+
+    def visitLogicalOr(self, ctx:MiniDecafParser.LogicalOrContext):
+        self.visitChildren(ctx)
+        if ctx.orOp() is not None:
+            self._container.add(IRStr.Binary(ctx.orOp().getText()))
+
+    def visitRelational(self, ctx:MiniDecafParser.RelationalContext):
+        self.visitChildren(ctx)
+        if ctx.relOp() is not None:
+            self._container.add(IRStr.Binary(ctx.relOp().getText()))
+    
+    def visitEquality(self, ctx:MiniDecafParser.EqualityContext):
+        self.visitChildren(ctx)
+        if ctx.eqOp() is not None:
+            self._container.add(IRStr.Binary(ctx.eqOp().getText()))
+    
+            
+
+    

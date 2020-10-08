@@ -54,11 +54,15 @@ class Unary(BaseIRStr):
     def genAsm(self):
         return [f'lw t1, 0(sp)', f'{self.asm_unary_ops[self.op]} t1, t1', 'sw t1, 0(sp)']
 
+
 class Binary(BaseIRStr):
     '''
     store binary operations
     '''
-    binary_ops = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '%': 'rem'}
+    binary_ops = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '%': 'rem',
+                '==': 'eq', '!=': 'ne',
+                '<': 'slt', '<=':'le', '>': 'sgt', '>=': 'ge',
+                '&&': 'land', '||': 'lor'}
     def __init__(self, op:str):
         '''
         op is the str of '+', '-', '*', '/', '%'
@@ -68,12 +72,74 @@ class Binary(BaseIRStr):
     
     def __str__(self):
         return self.binary_ops[self.op]
+    def _load_t1(self):
+        return 'lw t1, 4(sp)'
+
+    def _load_t2(self):
+        return 'lw t2, 0(sp)'
     
+    def _store_t1(self):
+        return 'sw t1, 0(sp)'
+    
+    def _add_stack(self):
+        return 'addi sp, sp, 4'
+    
+    def _header(self):
+        return [self._load_t1(), self._load_t2()]
+
+    def _trailer(self):
+        return [self._add_stack(), self._store_t1()]
+
+
     def genAsm(self):
-        return ['lw t1, 4(sp)', 
-                'lw t2, 0(sp)',
+        if self.op == '&&':
+            result = self._header()
+            result.extend(
+                [
+                    'snez t1, t1',
+                    'snez t2, t2',
+                    'and t1, t1, t2'
+                ]
+            )
+            result.extend(self._trailer())
+            return result
+        
+        elif self.op == '||':
+            result = self._header()
+            result.extend(
+                [
+                    'or t1, t1, t2',
+                    'snez t1, t1'
+                ]
+            )
+            result.extend(self._trailer())
+            return result
+
+        elif self.op in {'==' ,'!='}:
+            eq_asm_dict = { "==": "seqz", "!=": "snez" }
+            result = self._header()
+            result.extend(
+                [
+                    f"sub t1, t1, t2", 
+                    f"{eq_asm_dict[self.op]} t1, t1"
+                ]
+            )
+            result.extend(self._trailer())
+            return result
+
+        elif self.op == '>=':
+            result = Binary('<').genAsm()
+            result.extend(Unary('!').genAsm())
+            return result
+        elif self.op == '<=':
+            result = Binary('>').genAsm()
+            result.extend(Unary('!').genAsm())
+            return result
+
+        return [self._load_t1(), 
+                self._load_t2(),
                 f'{self.binary_ops[self.op]} t1, t1, t2',
-                'addi sp, sp, 4',
-                'sw t1, 0(sp)'
+                self._add_stack(),
+                self._store_t1()
                 ]
 

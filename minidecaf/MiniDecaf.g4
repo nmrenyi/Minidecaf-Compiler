@@ -20,7 +20,7 @@ stmt
     ;
 
 expr
-    : additive
+    : logicalOr
     ;
 
 unary
@@ -47,10 +47,46 @@ multiplicative
     | multiplicative mulOp unary
     ;
 
+equality
+    : relational
+    | equality eqOp relational
+    ;
+
+relational
+    : additive
+    | relational relOp additive
+    ;
+
+logicalOr
+    : logicalAnd
+    | logicalOr orOp logicalAnd
+    ;
+
+logicalAnd
+    : equality
+    | logicalAnd andOp equality
+    ;
+
+orOp
+    : '||'
+    ;
+
+andOp
+    : '&&'
+    ;
+
 addOp
     : '+' | '-'
     ;
 
 mulOp
     : '*' | '/' | '%'
+    ;
+
+relOp
+    : '<' | '>' | '<=' | '>='
+    ;
+
+eqOp
+    : '==' | '!='
     ;
