@@ -22,13 +22,11 @@ class IRGenerator(MiniDecafVisitor):
         # self._container.add(IRStr.Const(v))
 
     def visitUnary(self, ctx:MiniDecafParser.UnaryContext):
-        # print('unary:',ctx.unary().getText())
         self.visitChildren(ctx)
         if ctx.unary() is not None:
-            print(ctx.unaryOp().getText())
             self._container.add(IRStr.Unary(ctx.unaryOp().getText()))
+    
     def visitIntUnit(self, ctx:MiniDecafParser.IntUnitContext):
         v = int(ctx.Integer().getText())
-        print(v)
         self._container.add(IRStr.Const(v))
 
