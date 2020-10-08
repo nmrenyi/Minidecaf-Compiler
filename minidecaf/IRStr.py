@@ -40,16 +40,17 @@ class Unary(BaseIRStr):
     '''
     process unary operations
     '''
-    unary_ops = {'!':'lnot', '~':'not', '-':'neg'}
+    ir_unary_ops = {'!':'lnot', '~':'not', '-':'neg'}
+    asm_unary_ops = {'!':'seqz', '~':'not', '-':'neg'}
     def __init__(self, op:str):
         '''
         op is the str of '!', '~', '-'
         '''
-        assert(op in self.unary_ops)
+        assert(op in self.ir_unary_ops)
         self.op = op
     def __str__(self):
-        return self.unary_ops[self.op]
+        return self.ir_unary_ops[self.op]
     
     def genAsm(self):
-        return [f'lw t1, 0(sp)', f'{self.unary_ops[self.op]} t1, t1', 'sw t1, 0(sp)']
+        return [f'lw t1, 0(sp)', f'{self.asm_unary_ops[self.op]} t1, t1', 'sw t1, 0(sp)']
 
