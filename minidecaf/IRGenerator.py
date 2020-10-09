@@ -61,7 +61,6 @@ class IRGenerator(MiniDecafVisitor):
         self._container.add(IRStr.Store())
 
     def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
-        print('in atom ident')
         self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
         self._container.add(IRStr.Load())
 

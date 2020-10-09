@@ -37,7 +37,8 @@ class Ret(BaseIRStr):
         return f"ret"
     def genAsm(self):
         # return value is saved in a0
-        return [f"lw a0, 0(sp)", f"addi sp, sp, 4"]
+        return [f"beqz x0, main_exit"]
+        # return [f"lw a0, 0(sp)", f"addi sp, sp, 4"]
 
 class Load(BaseIRStr):
     '''
