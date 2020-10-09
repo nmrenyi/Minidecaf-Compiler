@@ -17,7 +17,10 @@ class OffsetTable(object):
     def newSlot(self, var=None):
         self._top -= 4
         if var is not None:
-            self._off[var] = self._top
+            if var not in self._off:
+                self._off[var] = self._top
+            else:
+                raise Exception("variable redefined")
         return self._top
 
 
