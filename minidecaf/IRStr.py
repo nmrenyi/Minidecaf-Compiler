@@ -65,7 +65,7 @@ class Binary(BaseIRStr):
                 '&&': 'land', '||': 'lor'}
     def __init__(self, op:str):
         '''
-        op is the str of '+', '-', '*', '/', '%'
+        op should be in self.binary_ops
         '''
         assert(op in self.binary_ops)
         self.op = op
@@ -131,11 +131,13 @@ class Binary(BaseIRStr):
             result = Binary('<').genAsm()
             result.extend(Unary('!').genAsm())
             return result
+
         elif self.op == '<=':
             result = Binary('>').genAsm()
             result.extend(Unary('!').genAsm())
             return result
 
+        # other operands, follow the general rule
         return [self._load_t1(), 
                 self._load_t2(),
                 f'{self.binary_ops[self.op]} t1, t1, t2',
