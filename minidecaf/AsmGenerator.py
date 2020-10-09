@@ -18,7 +18,6 @@ class AsmGenerator:
     def generate(self, ir:IRContainer):
         self.generateHeader('main')
         self.generateFromIR(ir)
-        # self.generateReturn()
         self.generateEpilogue("main")
 
 
@@ -34,13 +33,14 @@ class AsmGenerator:
             
     def generateEpilogue(self, func:str):
         self.writer.writeList(
-            AsmInstructionList(push_int(0)).__str__().split('\n') + [
-            AsmLabel(f"{func}_exit"),
-            AsmInstruction("lw a0, 0(sp)"),
-            AsmInstruction("mv sp, fp")] +
-            AsmInstructionList(pop("fp")).__str__().split('\n') + 
-            AsmInstructionList(pop('ra')).__str__().split('\n') + [
-            AsmInstruction("jr ra"),
+            AsmInstructionList(push_int(0)).__str__().split('\n') + # push 0 for no return status, default return 0
+            [
+                AsmLabel(f"{func}_exit"),
+                AsmInstruction("lw a0, 0(sp)"),
+                AsmInstruction("mv sp, fp")] +
+                AsmInstructionList(pop("fp")).__str__().split('\n') + 
+                AsmInstructionList(pop('ra')).__str__().split('\n') + [
+                AsmInstruction("jr ra"),
             ])
 
     def generateFromIR(self, irContainer:IRContainer):
