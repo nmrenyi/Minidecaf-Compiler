@@ -8,7 +8,7 @@ prog
     ;
 
 func
-    : ty 'main' '(' ')' '{' stmt* '}'
+    : ty 'main' '(' ')' '{' blockItem* '}'
     ;
 
 ty
@@ -18,14 +18,13 @@ ty
 stmt
     : 'return' expr ';'  # returnStmt
     | expr? ';'  # exprStmt
-    | declaration # declStmt
     | ';' # nullStmt
     | 'if' '(' expr ')' th=stmt ('else' el=stmt)? # ifStmt
-    | block # blockStmt
     ;
 
-block
-    : '{' stmt* '}'
+blockItem
+    : stmt
+    | declaration
     ;
 
 expr
