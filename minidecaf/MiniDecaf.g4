@@ -20,7 +20,7 @@ stmt
     | expr? ';'  # exprStmt
     | declaration # declStmt
     | ';' # nullStmt
-    | 'if' '(' expr ')' stmt ('else' stmt)? # ifStmt
+    | 'if' '(' expr ')' th=stmt ('else' el=stmt)? # ifStmt
     | block # blockStmt
     ;
 
@@ -38,8 +38,8 @@ assignment
     ;
 
 conditional
-    : logicalOr
-    | logicalOr '?' expr ':' conditional
+    : logicalOr # noCond
+    | logicalOr '?' expr ':' conditional # withCond
     ;
 
 declaration

@@ -11,6 +11,7 @@ class IRGenerator(MiniDecafVisitor):
     def __init__(self, irContainer):
         self._container = irContainer
         self.offsetTable = OffsetTable()
+        self.labelManager = LabelManager()
     
     def visitReturnStmt(self, ctx:MiniDecafParser.ReturnStmtContext):
         self.visitChildren(ctx)
@@ -40,6 +41,37 @@ class IRGenerator(MiniDecafVisitor):
             raise Exception('Identifier Not Found')
         # self._computeAddr(ctx.unary())
         self._container.add(IRStr.Store())
+
+    def visitIfStmt(self, ctx:MiniDecafParser.IfStmtContext):
+        '''
+        Referenced to TA implementation
+        '''
+        ctx.expr().accept(self) # calculate condition first
+        endLabel = self.labelManager.newLabel("if_end")
+        elseLabel = self.labelManager.newLabel("if_else")
+        if ctx.el is not None:
+            self._container.add(IRStr.Branch("beqz", elseLabel))
+            ctx.th.accept(self)
+            self._container.addList([IRStr.Branch("br", endLabel), IRStr.Label(elseLabel)])
+            ctx.el.accept(self)
+            self._container.add(IRStr.Label(endLabel))
+        else: # no else statement here
+            self._container.add(IRStr.Branch("beqz", endLabel))
+            ctx.th.accept(self)
+            self._container.add(IRStr.Label(endLabel))
+
+    def visitWithCond(self, ctx:MiniDecafParser.WithCondContext):
+        '''
+        Reference to TA implementation
+        '''
+        ctx.logicalOr().accept(self) # calc logicalOr first
+        exitLabel = self.labelManager.newLabel("cond_end")
+        elseLabel = self.labelManager.newLabel("cond_else")
+        self._container.add(IRStr.Branch("beqz", elseLabel)) # if false, go to else
+        ctx.expr().accept(self) # if true, do expr
+        self._container.addList([IRStr.Branch("br", exitLabel), IRStr.Label(elseLabel)])
+        ctx.conditional().accept(self)
+        self._container.add(IRStr.Label(exitLabel))
 
     def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
         self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
@@ -108,3 +140,19 @@ class OffsetTable(object):
             else:
                 raise Exception("variable redefined")
         return self._top
+
+class LabelManager:
+    '''
+    Label Manager
+    Counter for labels in case of duplication
+    Referenced to TA's implemenation
+    '''
+    def __init__(self):
+        self._labels = {}
+
+    def newLabel(self, scope="_L"):
+        if scope not in self._labels:
+            self._labels[scope] = 1
+        else:
+            self._labels[scope] += 1
+        return f"{scope}_{self._labels[scope]}"

@@ -118,6 +118,39 @@ class Unary(BaseIRStr):
     def genAsm(self):
         return [f'lw t1, 0(sp)', f'{self.asm_unary_ops[self.op]} t1, t1', 'sw t1, 0(sp)']
 
+class Branch(BaseIRStr):
+    '''
+    Branch operations
+    '''
+    branchOps = ["br", "beqz", "bnez", "beq"]
+    def __init__(self, op, label:str):
+        assert(op in self.branchOps)
+        self.op = op
+        self.label = label
+
+    def __str__(self):
+        return f"{self.op} {self.label}"
+    
+    def genAsm(self):
+        if self.op == 'br':
+            return [f'j {self.label}']
+        if self.op == 'beqz':
+            return pop('t1') + [f'beqz t1, {self.label}']
+        if self.op == 'bnez':
+            return pop('t1') + [f'bnez t1, {self.label}']
+        
+class Label(BaseIRStr):
+    '''
+    label for branch
+    '''
+    def __init__(self, label:str):
+        self.label = label
+
+    def __str__(self):
+        return f"{self.label}:"
+
+    def genAsm(self):
+        return [f"{self.label}:"]
 
 class Binary(BaseIRStr):
     '''

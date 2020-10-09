@@ -12,6 +12,7 @@ class IRContainer:
 
     def add(self, ir:minidecaf.IRStr.BaseIRStr):
         self.ir_str_list.append(ir)
-
+    def addList(self, irList):
+        self.ir_str_list.extend(irList)
     # def getIR(self):
     #     return "main:\n\t" + '\n\t'.join(map(str, self.ir_str_list))
