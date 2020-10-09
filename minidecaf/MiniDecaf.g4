@@ -1,4 +1,3 @@
-// using grammar from TA's reference implementation
 grammar MiniDecaf;
 
 import CommonLex;
