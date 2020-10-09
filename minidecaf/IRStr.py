@@ -1,3 +1,6 @@
+from minidecaf.utils import push_int
+from minidecaf.utils import push_reg
+from minidecaf.utils import pop
 
 class BaseIRStr:
     '''
@@ -35,6 +38,66 @@ class Ret(BaseIRStr):
     def genAsm(self):
         # return value is saved in a0
         return [f"lw a0, 0(sp)", f"addi sp, sp, 4"]
+
+class Load(BaseIRStr):
+    '''
+    load stack top address data to stack top
+    '''
+    def __str__(self):
+        return 'load'
+    
+    def genAsm(self):
+        '''
+        stack top as the address (popped to t1)
+        go to the address and access result 
+        store the result in t1 and push to the stack
+        '''
+        return (pop('t1') + ['lw t1, 0(t1)'] + push_reg('t1'))
+
+class Pop(BaseIRStr):
+    '''
+    pop from the stack (add stack pointer) without reg changes
+    '''
+    def __str__(self):
+        return 'pop'
+    def genAsm(self):
+        '''
+        just pop (add stack pointer)
+        no registers are changed here
+        '''
+        return pop(None)
+
+
+class Store(BaseIRStr):
+    '''
+    store stackTop + 4 data to 0(stackTop) address
+    '''
+    def __str__(self):
+        return 'store'
+    def genAsm(self):
+        '''
+        t1(stack top + 4) is the data to be stored
+        t2(stack top) is the address where the data should be stored
+        this operations performs storing t1 in 0(t2)
+        '''
+        return pop('t2') + pop('t1') + ["sw t1, 0(t2)"] + push_reg('t1')
+        
+class FrameSlot(BaseIRStr):
+    '''
+    save the var's address to the stack top    
+    '''
+    def __init__(self, fpOffset:int):
+        assert fpOffset < 0
+        self.offset = fpOffset
+
+    def __str__(self):
+        return f'frameslot {self.offset}'
+    
+    def genAsm(self):
+        '''
+        save offset(fp) to stack
+        '''
+        return push_reg('fp') + push_int(self.offset) + Binary('+').genAsm()
 
 class Unary(BaseIRStr):
     '''

@@ -16,9 +16,10 @@ ty
     ;
 
 stmt
-    : 'return' expr ';'
-    | expr? ';'
-    | declaration
+    : 'return' expr ';'  # returnStmt
+    | expr? ';'  # exprStmt
+    | declaration # declStmt
+    | ';' # nullStmt
     ;
 
 expr
@@ -26,8 +27,8 @@ expr
     ;
 
 assignment
-    : logicalOr
-    | Ident '=' expr
+    : logicalOr # noAsgn
+    | Ident '=' assignment # withAsgn
     ;
 
 declaration
@@ -35,7 +36,7 @@ declaration
     ;
 
 unary
-    : intUnit
+    : atom
     | unaryOp unary
     ;
 
@@ -43,10 +44,10 @@ unaryOp
     : '-' | '!' | '~'
     ;
 
-intUnit
-    : Integer
-    | '(' expr ')'
-    | Ident
+atom
+    : Integer # atomInteger
+    | '(' expr ')' # atomParen
+    | Ident # atomIdent
     ;
 
 additive

@@ -54,5 +54,7 @@ def main():
     tokenStream = Lexer(inputStream)
     tree = Parser(tokenStream)
     ir = GenIR(tree)
-    # print(ir)
-    GenAsm(ir, args.outfile)
+    if args.ir:
+        print(ir)
+    else:
+        GenAsm(ir, args.outfile)

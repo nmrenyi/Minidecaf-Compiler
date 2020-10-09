@@ -1,6 +1,26 @@
 from .generated.MiniDecafVisitor import MiniDecafVisitor
 from .generated.MiniDecafParser import MiniDecafParser
 import minidecaf.IRStr as IRStr
+
+class OffsetTable(object):
+    '''
+    Referenced to TA's OffsetManager
+    This class aims to note the offset value of every identifier.
+    '''
+    def __init__(self):
+        self._off = {}
+        self._top = 0
+
+    def __getitem__(self, var):
+        return self._off[var]
+
+    def newSlot(self, var=None):
+        self._top -= 4
+        if var is not None:
+            self._off[var] = self._top
+        return self._top
+
+
 class IRGenerator(MiniDecafVisitor):
     '''
     A visitor for going through the whole ast, inherited from MiniDecafVisitor
@@ -8,22 +28,50 @@ class IRGenerator(MiniDecafVisitor):
     '''
     def __init__(self, irContainer):
         self._container = irContainer
+        self.offsetTable = OffsetTable()
     
     def visitReturnStmt(self, ctx:MiniDecafParser.ReturnStmtContext):
         # be careful of the relative position(i.e. order) of these two commands
         self.visitChildren(ctx)
         self._container.add(IRStr.Ret())
 
+    def visitExprStmt(self, ctx:MiniDecafParser.ExprStmtContext):
+        self.visitChildren(ctx)
+        self._container.add(IRStr.Pop())
+
     def visitExpr(self, ctx:MiniDecafParser.ExprContext):
         self.visitChildren(ctx)
+
+    def visitDeclaration(self, ctx:MiniDecafParser.DeclarationContext):
+        if ctx.Ident() is not None:
+            var = ctx.Ident().getText()
+            if ctx.expr() is not None:
+                ctx.expr().accept(self) # get expression value
+            else:
+                self._container.add(IRStr.Const(0)) # default value is zero
+            self.offsetTable.newSlot(var) # new stack space for var
+    
+    def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
+        ctx.assignment().accept(self)
+        if ctx.Ident() is not None:
+            self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
+        else:
+            raise Exception('Identifier Not Found')
+        # self._computeAddr(ctx.unary())
+        self._container.add(IRStr.Store())
+
+    def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
+        print('in atom ident')
+        self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
+        self._container.add(IRStr.Load())
 
     def visitUnary(self, ctx:MiniDecafParser.UnaryContext):
         self.visitChildren(ctx)
         if ctx.unaryOp() is not None:
             self._container.add(IRStr.Unary(ctx.unaryOp().getText()))
     
-    def visitIntUnit(self, ctx:MiniDecafParser.IntUnitContext):
-        self.visitChildren(ctx)
+    def visitAtomInteger(self, ctx:MiniDecafParser.AtomIntegerContext):
+        # no children in atomInteger branch, get the Integer DIRECTLY
         if ctx.Integer() is not None:
             v = int(ctx.Integer().getText())
             self._container.add(IRStr.Const(v))
