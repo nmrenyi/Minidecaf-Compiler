@@ -18,7 +18,7 @@ class AsmGenerator:
     def generate(self, ir:IRContainer):
         self.generateHeader('main')
         self.generateFromIR(ir)
-        self.generateReturn()
+        # self.generateReturn()
         self.generateEpilogue("main")
 
 
