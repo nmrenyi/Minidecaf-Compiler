@@ -43,3 +43,4 @@ class AsmDirective(AsmCommand):
     '''
     def __str__(self):
         return f"\t{self.s}"
+

@@ -27,16 +27,19 @@ class AsmGenerator:
             AsmDirective(".text"),
             AsmDirective(f".globl {func_name}"),
             AsmLabel(f'{func_name}')] + 
-            push_reg('ra') + push_reg('fp') +
+            AsmInstructionList(push_reg('ra')).__str__().split('\n') + 
+            AsmInstructionList(push_reg('fp')).__str__().split('\n') +
             [AsmInstruction('mv fp, sp')
             ])
+            
     def generateEpilogue(self, func:str):
         self.writer.writeList(
-            push_int(0) + [
+            AsmInstructionList(push_int(0)).__str__().split('\n') + [
             AsmLabel(f"{func}_exit"),
             AsmInstruction("lw a0, 0(sp)"),
             AsmInstruction("mv sp, fp")] +
-            pop("fp") + pop('ra') + [
+            AsmInstructionList(pop("fp")).__str__().split('\n') + 
+            AsmInstructionList(pop('ra')).__str__().split('\n') + [
             AsmInstruction("jr ra"),
             ])
 

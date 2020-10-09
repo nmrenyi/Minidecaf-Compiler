@@ -2,27 +2,6 @@ from .generated.MiniDecafVisitor import MiniDecafVisitor
 from .generated.MiniDecafParser import MiniDecafParser
 import minidecaf.IRStr as IRStr
 
-class OffsetTable(object):
-    '''
-    Referenced to TA's OffsetManager
-    This class aims to note the offset value of every identifier.
-    '''
-    def __init__(self):
-        self._off = {}
-        self._top = 0
-
-    def __getitem__(self, var):
-        return self._off[var]
-
-    def newSlot(self, var=None):
-        self._top -= 4
-        if var is not None:
-            if var not in self._off:
-                self._off[var] = self._top
-            else:
-                raise Exception("variable redefined")
-        return self._top
-
 
 class IRGenerator(MiniDecafVisitor):
     '''
@@ -34,7 +13,6 @@ class IRGenerator(MiniDecafVisitor):
         self.offsetTable = OffsetTable()
     
     def visitReturnStmt(self, ctx:MiniDecafParser.ReturnStmtContext):
-        # be careful of the relative position(i.e. order) of these two commands
         self.visitChildren(ctx)
         self._container.add(IRStr.Ret())
 
@@ -108,3 +86,25 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.eqOp() is not None:
             self._container.add(IRStr.Binary(ctx.eqOp().getText()))
     
+
+
+class OffsetTable(object):
+    '''
+    Referenced to TA's OffsetManager
+    This class aims to note the offset value of every identifier.
+    '''
+    def __init__(self):
+        self._off = {}
+        self._top = 0
+
+    def __getitem__(self, var):
+        return self._off[var]
+
+    def newSlot(self, var=None):
+        self._top -= 4
+        if var is not None:
+            if var not in self._off:
+                self._off[var] = self._top
+            else:
+                raise Exception("variable redefined")
+        return self._top
