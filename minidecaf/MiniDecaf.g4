@@ -8,7 +8,7 @@ prog
     ;
 
 func
-    : ty 'main' '(' ')' '{' stmt '}'
+    : ty 'main' '(' ')' '{' stmt* '}'
     ;
 
 ty
@@ -16,11 +16,22 @@ ty
     ;
 
 stmt
-    : 'return' expr ';' # returnStmt
+    : 'return' expr ';'
+    | expr? ';'
+    | declaration
     ;
 
 expr
+    : assignment
+    ;
+
+assignment
     : logicalOr
+    | Ident '=' expr
+    ;
+
+declaration
+    : ty Ident ('=' expr)? ';'
     ;
 
 unary
@@ -35,6 +46,7 @@ unaryOp
 intUnit
     : Integer
     | '(' expr ')'
+    | Ident
     ;
 
 additive
