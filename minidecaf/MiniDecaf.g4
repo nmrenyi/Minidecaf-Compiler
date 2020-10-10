@@ -7,7 +7,7 @@ prog
     ;
 
 func
-    : ty 'main' '(' ')' '{' blockItem* '}'
+    : ty 'main' '(' ')' compoundStmt
     ;
 
 ty
@@ -19,6 +19,11 @@ stmt
     | expr? ';'  # exprStmt
     | ';' # nullStmt
     | 'if' '(' expr ')' th=stmt ('else' el=stmt)? # ifStmt
+    | compoundStmt # cmpdStmt
+    ;
+
+compoundStmt
+    : '{' blockItem* '}'
     ;
 
 blockItem
