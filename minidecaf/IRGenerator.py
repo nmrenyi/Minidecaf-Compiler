@@ -138,26 +138,26 @@ class IRGenerator(MiniDecafVisitor):
     
 
 
-class OffsetTable(object):
-    '''
-    Referenced to TA's OffsetManager
-    This class aims to note the offset value of every identifier.
-    '''
-    def __init__(self):
-        self._off = {}
-        self._top = 0
+# class OffsetTable(object):
+#     '''
+#     Referenced to TA's OffsetManager
+#     This class aims to note the offset value of every identifier.
+#     '''
+#     def __init__(self):
+#         self._off = {}
+#         self._top = 0
 
-    def __getitem__(self, var):
-        return self._off[var]
+#     def __getitem__(self, var):
+#         return self._off[var]
 
-    def newSlot(self, var=None):
-        self._top -= 4
-        if var is not None:
-            if var not in self._off:
-                self._off[var] = self._top
-            else:
-                raise Exception("variable redefined")
-        return self._top
+#     def newSlot(self, var=None):
+#         self._top -= 4
+#         if var is not None:
+#             if var not in self._off:
+#                 self._off[var] = self._top
+#             else:
+#                 raise Exception("variable redefined")
+#         return self._top
 
 class LabelManager:
     '''
