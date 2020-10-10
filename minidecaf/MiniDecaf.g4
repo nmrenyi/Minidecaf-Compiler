@@ -20,6 +20,12 @@ stmt
     | ';' # nullStmt
     | 'if' '(' expr ')' th=stmt ('else' el=stmt)? # ifStmt
     | compound # cmpdStmt
+    | 'for' '(' init=declaration  ctrl=expr? ';' post=expr? ')' stmt # forDeclStmt
+    | 'for' '(' init=expr? ';' ctrl=expr? ';' post=expr? ')' stmt # forStmt
+    | 'while' '(' expr ')' stmt # whileStmt
+    | 'do' stmt 'while' '(' expr ')' ';' # doWhileStmt
+    | 'break' ';' # breakStmt
+    | 'continue' ';' # continueStmt
     ;
 
 compound

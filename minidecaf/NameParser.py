@@ -61,10 +61,13 @@ class NameParser(MiniDecafVisitor):
                 raise Exception(f"redefinition of {var}") # redefinition of vars
         self.defVar(ctx, ctx.Ident())
 
-    # def visitForDeclStmt(self, ctx:MiniDecafParser.ForDeclStmtContext):
-    #     self.enterScope(ctx)
-    #     self.visitChildren(ctx)
-    #     self.exitScope(ctx)
+    def visitForDeclStmt(self, ctx:MiniDecafParser.ForDeclStmtContext):
+        '''
+        process for with declaration
+        '''
+        self.enterScope(ctx)
+        self.visitChildren(ctx)
+        self.exitScope(ctx)
 
     def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
         '''

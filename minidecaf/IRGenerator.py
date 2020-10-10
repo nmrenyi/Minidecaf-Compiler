@@ -20,13 +20,69 @@ class IRGenerator(MiniDecafVisitor):
         '''
         return self.nameManager[term].offset
 
+    def loop(self, name, init, cond, body, post):
+        '''
+        general loop structure
+        '''
+        entryLabel = self.labelManager.newLabel(f"{name}_entry")
+        if post is not None: # have statement like incrementation
+            continueLabel = self.labelManager.newLabel(f"{name}_continue")
+        else:
+            continueLabel = entryLabel # go to start directly
+        exitLabel = self.labelManager.newLabel(f"{name}_exit")
+
+        self.labelManager.enterLoop(continueLabel, exitLabel)
+        if init is not None:
+            init.accept(self)
+            if isinstance(init, MiniDecafParser.ExprContext):
+                self._container.add(IRStr.Pop())
+        self._container.add(IRStr.Label(entryLabel))
+        if cond is not None:
+            cond.accept(self) # check loop condition
+        else:
+            self._container.add(IRStr.Const(1)) # loop forever
+        self._container.add(IRStr.Branch("beqz", exitLabel)) # if cond is not satisfied (stack top == 0), then exit
+        body.accept(self) # calculate body part
+
+        if post is not None:
+            self._container.add(IRStr.Label(continueLabel)) # go to post
+            post.accept(self) # calculate post
+            if isinstance(post, MiniDecafParser.ExprContext):
+                self._container.add(IRStr.Pop())
+
+        self._container.add(IRStr.Branch("br", entryLabel)) # go to entry, loop!
+        self._container.add(IRStr.Label(exitLabel)) # exit label
+
+        self.labelManager.exitLoop()
+
+    def visitForDeclStmt(self, ctx:MiniDecafParser.ForDeclStmtContext):
+        self.loop("for", ctx.init, ctx.ctrl, ctx.stmt(), ctx.post)
+        self._container.addList([IRStr.Pop()] * self.nameManager.blockSlots[ctx])
+
+    def visitForStmt(self, ctx:MiniDecafParser.ForStmtContext):
+        self.loop("for", ctx.init, ctx.ctrl, ctx.stmt(), ctx.post)
+
+    def visitWhileStmt(self, ctx:MiniDecafParser.WhileStmtContext):
+        self.loop("while", None, ctx.expr(), ctx.stmt(), None)
+
+    def visitDoWhileStmt(self, ctx:MiniDecafParser.DoWhileStmtContext):
+        self.loop("dowhile", ctx.stmt(), ctx.expr(), ctx.stmt(), None)
+    
+    def visitBreakStmt(self, ctx:MiniDecafParser.BreakStmtContext):
+        self._container.add(IRStr.Branch("br", self.labelManager.breakLabel()))
+
+    def visitContinueStmt(self, ctx:MiniDecafParser.ContinueStmtContext):
+        self._container.add(IRStr.Branch("br", self.labelManager.continueLabel()))
+
     def visitReturnStmt(self, ctx:MiniDecafParser.ReturnStmtContext):
         self.visitChildren(ctx)
         self._container.add(IRStr.Ret())
 
     def visitExprStmt(self, ctx:MiniDecafParser.ExprStmtContext):
         self.visitChildren(ctx)
-        self._container.add(IRStr.Pop())
+        if ctx.expr() is not None: 
+            # empty expression shouldn't be popped (step 8 empty expr won't pass without this)
+            self._container.add(IRStr.Pop())
 
     def visitExpr(self, ctx:MiniDecafParser.ExprContext):
         self.visitChildren(ctx)
@@ -167,6 +223,8 @@ class LabelManager:
     '''
     def __init__(self):
         self._labels = {}
+        self.loopEntry = [] # labels for loop entry
+        self.loopExit = [] # labels for loop exit
 
     def newLabel(self, scope="_L"):
         if scope not in self._labels:
@@ -174,3 +232,38 @@ class LabelManager:
         else:
             self._labels[scope] += 1
         return f"{scope}_{self._labels[scope]}"
+
+    def enterLoop(self, entry, exit):
+        '''
+        add loop entry control
+        append entry and exit label to corresponding list
+        '''
+        self.loopEntry.append(entry)
+        self.loopExit.append(exit)
+
+    def exitLoop(self):
+        '''
+        add loop exit control
+        pop loop entry/exit label
+        '''
+        self.loopEntry.pop()
+        self.loopExit.pop()
+
+    def breakLabel(self):
+        '''
+        return the last break label
+        if no break label exists, the 'break' must be outside a loop
+        '''
+        if len(self.loopExit) == 0:
+            raise Exception("break not in a loop")
+        return self.loopExit[-1]
+
+    def continueLabel(self):
+        '''
+        return the last continue label
+        if no continue label exists, the 'continue' must be outside a loop
+
+        '''
+        if len(self.loopExit) == 0:
+            raise Exception("continue not in a loop")
+        return self.loopEntry[-1]
