@@ -82,6 +82,7 @@ class IRGenerator(MiniDecafVisitor):
         self.visitChildren(ctx)
         if ctx.expr() is not None: 
             # empty expression shouldn't be popped (step 8 empty expr won't pass without this)
+            # non-empty expression should be popped (int i = 0; i = 3; see the ir output)
             self._container.add(IRStr.Pop())
 
     def visitExpr(self, ctx:MiniDecafParser.ExprContext):
