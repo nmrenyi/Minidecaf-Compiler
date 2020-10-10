@@ -8,11 +8,18 @@ class IRGenerator(MiniDecafVisitor):
     A visitor for going through the whole ast, inherited from MiniDecafVisitor
     The accept method in different node uses the vistor's different methods, that is the visitor pattern.
     '''
-    def __init__(self, irContainer):
+    def __init__(self, irContainer, nameManager):
         self._container = irContainer
-        self.offsetTable = OffsetTable()
+        # self.offsetTable = OffsetTable()
         self.labelManager = LabelManager()
+        self.nameManager = nameManager
     
+    def getPosition(self, term):
+        '''
+        return the position relative to fp for specific term
+        '''
+        return self.nameManager[term].offset
+
     def visitReturnStmt(self, ctx:MiniDecafParser.ReturnStmtContext):
         self.visitChildren(ctx)
         self._container.add(IRStr.Ret())
@@ -31,12 +38,22 @@ class IRGenerator(MiniDecafVisitor):
                 ctx.expr().accept(self) # get expression value
             else:
                 self._container.add(IRStr.Const(0)) # default value is zero
-            self.offsetTable.newSlot(var) # new stack space for var
+            # self.offsetTable.newSlot(var) # new stack space for var
     
+    def visitCompound(self, ctx:MiniDecafParser.CompoundContext):
+        '''
+        visit block here
+        pop the variables defined in the block
+        '''
+        self.visitChildren(ctx)
+        self._container.addList([IRStr.Pop()] * self.nameManager.blockSlots[ctx])
+
+        
     def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
         ctx.assignment().accept(self)
         if ctx.Ident() is not None:
-            self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
+            # self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
+            self._container.add(IRStr.FrameSlot(self.getPosition(ctx.Ident())))
         else:
             raise Exception('Identifier Not Found')
         # self._computeAddr(ctx.unary())
@@ -74,7 +91,8 @@ class IRGenerator(MiniDecafVisitor):
         self._container.add(IRStr.Label(exitLabel))
 
     def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
-        self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
+        # self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
+        self._container.add(IRStr.FrameSlot(self.getPosition(ctx.Ident()))) # get position from nameManager
         self._container.add(IRStr.Load())
 
     def visitUnary(self, ctx:MiniDecafParser.UnaryContext):

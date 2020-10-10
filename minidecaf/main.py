@@ -11,6 +11,7 @@ from minidecaf.IRContainer import IRContainer
 from minidecaf.IRGenerator import IRGenerator
 from minidecaf.AsmWriter import AsmWriter
 from minidecaf.AsmGenerator import AsmGenerator
+from minidecaf.NameParser import NameParser
 def parseArgs(argv):
     parser = argparse.ArgumentParser(description="MiniDecaf compiler by RenYi 2018011423")
     parser.add_argument("infile", type=str,
@@ -31,9 +32,9 @@ def Lexer(inputStream):
     tokenStream = antlr4.CommonTokenStream(lexer)
     return tokenStream
 
-def GenIR(tree):
+def GenIR(tree, nameManager):
     irContainer = IRContainer()
-    IRGenerator(irContainer).visit(tree)
+    IRGenerator(irContainer, nameManager).visit(tree)
     return irContainer
 
 def GenAsm(ir:IRContainer, output_file):
@@ -47,13 +48,18 @@ def GenAsm(ir:IRContainer, output_file):
     asmGenerator.generate(ir)
     asmWriter.close()
 
+def NameParse(tree):
+    nameParser = NameParser()
+    nameParser.visit(tree)
+    return nameParser.nameManager
 
 def main():
     args = parseArgs(sys.argv)
     inputStream = antlr4.FileStream(args.infile)
     tokenStream = Lexer(inputStream)
     tree = Parser(tokenStream)
-    ir = GenIR(tree)
+    nameManager = NameParse(tree)
+    ir = GenIR(tree, nameManager)
     if args.ir:
         print(ir)
     else:
