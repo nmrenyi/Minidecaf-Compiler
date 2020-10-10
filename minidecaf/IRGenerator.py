@@ -10,7 +10,6 @@ class IRGenerator(MiniDecafVisitor):
     '''
     def __init__(self, irContainer, nameManager):
         self._container = irContainer
-        # self.offsetTable = OffsetTable()
         self.labelManager = LabelManager()
         self.nameManager = nameManager
     
@@ -95,7 +94,6 @@ class IRGenerator(MiniDecafVisitor):
                 ctx.expr().accept(self) # get expression value
             else:
                 self._container.add(IRStr.Const(0)) # default value is zero
-            # self.offsetTable.newSlot(var) # new stack space for var
     
     def visitCompound(self, ctx:MiniDecafParser.CompoundContext):
         '''
@@ -109,11 +107,9 @@ class IRGenerator(MiniDecafVisitor):
     def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
         ctx.assignment().accept(self)
         if ctx.Ident() is not None:
-            # self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
             self._container.add(IRStr.FrameSlot(self.getPosition(ctx.Ident())))
         else:
             raise Exception('Identifier Not Found')
-        # self._computeAddr(ctx.unary())
         self._container.add(IRStr.Store())
 
     def visitIfStmt(self, ctx:MiniDecafParser.IfStmtContext):
@@ -148,7 +144,6 @@ class IRGenerator(MiniDecafVisitor):
         self._container.add(IRStr.Label(exitLabel))
 
     def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
-        # self._container.add(IRStr.FrameSlot(self.offsetTable[ctx.Ident().getText()]))
         self._container.add(IRStr.FrameSlot(self.getPosition(ctx.Ident()))) # get position from nameManager
         self._container.add(IRStr.Load())
 
@@ -193,29 +188,6 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.eqOp() is not None:
             self._container.add(IRStr.Binary(ctx.eqOp().getText()))
     
-
-
-# class OffsetTable(object):
-#     '''
-#     Referenced to TA's OffsetManager
-#     This class aims to note the offset value of every identifier.
-#     '''
-#     def __init__(self):
-#         self._off = {}
-#         self._top = 0
-
-#     def __getitem__(self, var):
-#         return self._off[var]
-
-#     def newSlot(self, var=None):
-#         self._top -= 4
-#         if var is not None:
-#             if var not in self._off:
-#                 self._off[var] = self._top
-#             else:
-#                 raise Exception("variable redefined")
-#         return self._top
-
 class LabelManager:
     '''
     Label Manager
