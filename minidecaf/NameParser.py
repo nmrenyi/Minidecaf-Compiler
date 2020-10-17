@@ -143,6 +143,40 @@ class NameParser(MiniDecafVisitor):
             if declaration.Ident() is not None:
                 return self.variableScope[declaration.Ident().getText()]
         return list(map(f, ctx.declaration()))
+    
+    def globalInitializer(self, ctx:MiniDecafParser.ExprContext):
+        '''
+        global variable initializer
+        '''
+        if ctx is None:
+            return None
+        try:
+            return eval(ctx.getText(), {}, {})
+        except:
+            raise Exception("global initializers must be constants")
+
+    def visitDeclExternalDecl(self, ctx:MiniDecafParser.DeclExternalDeclContext):
+        ctx = ctx.declaration()
+        init = self.globalInitializer(ctx.expr())
+        if ctx.Ident() is not None:
+            varStr = ctx.Ident().getText()
+            var = Variable(varStr, None)
+            globInfo = GlobInfo(var, 4, init)
+            if varStr in self.variableScope.currentScopeDict():
+                prevVar = self.variableScope[varStr]
+                prevGlobInfo = self.funcNameManager.globInfos[prevVar]
+                if not prevGlobInfo.compatible(globInfo):
+                    raise Exception(f"conflicting types for {varStr}")
+                if prevGlobInfo.init is not None:
+                    if globInfo.init is not None:
+                        raise Exception(f"redefinition of variable {varStr}")
+                    return
+                elif globInfo.init is not None:
+                    self.funcNameManager.globInfos[prevVar].init = init
+            else:
+                self.variableScope[varStr] = var
+                self.funcNameManager.globInfos[var] = globInfo
+
 
 class Variable:
     '''
@@ -287,15 +321,26 @@ class ParamInfo:
 
 class FuncInfo:
     '''
-    Parser for function
+    Parser for function and global var
     Ref to TA's implementation
     '''
     def __init__(self):
         self.nameManager = {} # str -> NameManager. Initialized by Def.
         self.paramInfos = {} # str -> ParamInfo. Fixed by Def; can be initialized by Decl.
+        self.globInfos = {} # Variable -> GlobInfo.
 
     def enterFunction(self, func:str, funcNameInfo: NameManager, paramInfo:ParamInfo):
         self.nameManager[func] = funcNameInfo
         self.paramInfos[func] = paramInfo
 
 
+class GlobInfo:
+    '''
+    global variable info
+    '''
+    def __init__(self, var:Variable, size:int, init=None):
+        self.var = var
+        self.size = size
+        self.init = init # not a byte array -- that requires endian info
+    def compatible(self, other):
+        return True

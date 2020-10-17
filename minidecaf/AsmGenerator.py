@@ -14,9 +14,29 @@ class AsmGenerator:
     '''
     def __init__(self, asmWriter:AsmWriter):
         self.writer = asmWriter
-    
+
+    def checkConflict(self, globs, funcs, funcDecl):
+        var_name_list = [glob.var.name for glob in globs]
+        funcs_name_list = [func.name for func in funcs]
+        conflict = list(set(var_name_list) & (set(funcs_name_list) | set(funcDecl)))
+        if len(conflict) != 0:
+            raise Exception('conflict naming between global var and func')
+
     def generate(self, ir:IRContainer):
         self.ir = ir
+        self.checkConflict(ir.globs, ir.funcs, ir.funcDecl)
+        for glob in ir.globs:
+            if glob.init is None:
+                self.writer.writeList([AsmDirective(f".comm {glob.var.name},{glob.size},4")])
+            else:
+                self.writer.writeList([
+                    AsmDirective(".data"),
+                    AsmDirective(f".globl {glob.var.name}"),
+                    AsmDirective(f".align 4"),
+                    AsmDirective(f".size {glob.var.name}, {glob.size}"),
+                    AsmLabel(f"{glob.var.name}"),
+                    AsmDirective(f".quad {glob.init}")])
+
         for func in ir.funcs:
             self.curFunc = func.name
             self.generateHeader(f"{func.name}", func.paramInfo)

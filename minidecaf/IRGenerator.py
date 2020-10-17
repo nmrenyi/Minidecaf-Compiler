@@ -21,6 +21,8 @@ class IRGenerator(MiniDecafVisitor):
         '''
         return self._curFuncNameInfo[term].offset
         # return self.nameManager[term].offset
+    def getIdent(self, term):
+        return self._curFuncNameInfo[term].name
 
     def loop(self, name, init, cond, body, post):
         '''
@@ -110,7 +112,12 @@ class IRGenerator(MiniDecafVisitor):
     def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
         ctx.assignment().accept(self)
         if ctx.Ident() is not None:
-            self._container.add(IRStr.FrameSlot(self.getPosition(ctx.Ident())))
+            offset = self.getPosition(ctx.Ident())
+            if offset is None:
+                self._container.add(IRStr.GlobalSymbol(self.getIdent(ctx.Ident())))
+            else:
+                self._container.add(IRStr.FrameSlot(offset)) # get position from nameManager
+            # self._container.add(IRStr.FrameSlot(self.getPosition(ctx.Ident())))
         else:
             raise Exception('Identifier Not Found')
         self._container.add(IRStr.Store())
@@ -147,7 +154,11 @@ class IRGenerator(MiniDecafVisitor):
         self._container.add(IRStr.Label(exitLabel))
 
     def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
-        self._container.add(IRStr.FrameSlot(self.getPosition(ctx.Ident()))) # get position from nameManager
+        offset = self.getPosition(ctx.Ident())
+        if offset is None:
+            self._container.add(IRStr.GlobalSymbol(self.getIdent(ctx.Ident())))
+        else:
+            self._container.add(IRStr.FrameSlot(offset)) # get position from nameManager
         self._container.add(IRStr.Load())
 
     def visitUnary(self, ctx:MiniDecafParser.UnaryContext):
@@ -210,7 +221,9 @@ class IRGenerator(MiniDecafVisitor):
         self._container.exitFunction()
 
     def visitFuncDecl(self, ctx:MiniDecafParser.FuncDeclContext):
-        pass
+        self.visitChildren(ctx)
+        if ctx.Ident() is not None:
+            self._container.addFuncDecl(ctx.Ident().getText())
 
     def visitAtomCall(self, ctx:MiniDecafParser.AtomCallContext):
         args = ctx.argList().expr()
@@ -224,6 +237,11 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.Ident() is not None:
             func = ctx.Ident().getText()
             self._container.add(IRStr.Call(func, self.nameManager.paramInfos[func].paramNum))
+
+    def visitProg(self, ctx:MiniDecafParser.ProgContext):
+        for globInfo in self.nameManager.globInfos.values():
+            self._container.addGlobal(globInfo)
+        self.visitChildren(ctx)
 
 
 class LabelManager:

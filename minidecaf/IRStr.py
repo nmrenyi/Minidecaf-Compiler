@@ -12,6 +12,18 @@ class BaseIRStr:
     def genAsm(self):
         pass
 
+class GlobalSymbol(BaseIRStr):
+    '''
+    global symbol in step10
+    '''
+    def __init__(self, sym:str):
+        self.sym = sym
+    def __str__(self):
+        return f"globalsymbol {self.sym}"
+
+    def genAsm(self):
+        return [f'la t1, {self.sym}'] + push_reg('t1')
+
 class Call(BaseIRStr):
     '''
     parameters are pushed onto stack from right to left before call instruction
