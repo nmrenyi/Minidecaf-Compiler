@@ -3,11 +3,25 @@ grammar MiniDecaf;
 import CommonLex;
 
 prog
-    : func EOF  // Add EOF for tailing trash
+    : externalDecl+ EOF  // Add EOF for tailing trash
+    ;
+
+externalDecl
+    : func* main_func func* # funcExternalDecl
+    | declaration ';' # declExternalDecl
+    ;
+
+main_func
+    : ty 'main' '(' ')' compound
     ;
 
 func
-    : ty 'main' '(' ')' compound
+    : ty Ident '(' paramList ')' compound # funcDef
+    | ty Ident '(' paramList ')' ';' # funcDecl
+    ;
+
+paramList
+    : (decl_no_semiCol (',' decl_no_semiCol)*)?
     ;
 
 ty
@@ -53,6 +67,10 @@ conditional
 
 declaration
     : ty Ident ('=' expr)? ';'
+    ;
+
+decl_no_semiCol
+    : ty Ident ('=' expr)?
     ;
 
 unary
