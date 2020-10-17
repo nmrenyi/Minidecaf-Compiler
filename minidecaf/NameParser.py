@@ -4,12 +4,9 @@ from copy import deepcopy
 import antlr4
 
 class NameParser(MiniDecafVisitor):
-    """
-    Name resolution.
-    It is basically an alpha conversion pass; different variables with the same
-    name are resolved to different `Variable`s. The output is a NameInfo, mapping
-    variable occurrence (i.e. its Ident's TerminalNodeImpl) to Variable/Offsets.
-    """
+    '''
+    Name resolution process
+    '''
     def __init__(self):
         self.variableScope = StackedScopeManager() # mapping from str -> Variable
         self.scopeVarCnt = [] # number of variables in each block (accumulated count)
@@ -146,7 +143,7 @@ class NameParser(MiniDecafVisitor):
     
     def globalInitializer(self, ctx:MiniDecafParser.ExprContext):
         '''
-        global variable initializer
+        global variable init value getter
         '''
         if ctx is None:
             return None
@@ -156,8 +153,11 @@ class NameParser(MiniDecafVisitor):
             raise Exception("global initializers must be constants")
 
     def visitDeclExternalDecl(self, ctx:MiniDecafParser.DeclExternalDeclContext):
+        '''
+        global variable declarations
+        '''
         ctx = ctx.declaration()
-        init = self.globalInitializer(ctx.expr())
+        init = self.globalInitializer(ctx.expr()) # try to get init value
         if ctx.Ident() is not None:
             varStr = ctx.Ident().getText()
             var = Variable(varStr, None)
