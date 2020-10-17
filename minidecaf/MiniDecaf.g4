@@ -21,7 +21,11 @@ func
     ;
 
 paramList
-    : (decl_no_semiCol (',' decl_no_semiCol)*)?
+    : (declaration (',' declaration)*)?
+    ;
+
+argList
+    : (expr (',' expr)*)?
     ;
 
 ty
@@ -86,6 +90,7 @@ atom
     : Integer # atomInteger
     | '(' expr ')' # atomParen
     | Ident # atomIdent
+    | Ident '(' argList ')' # atomCall
     ;
 
 additive
