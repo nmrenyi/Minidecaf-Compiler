@@ -1,18 +1,43 @@
 import minidecaf.IRStr
+from minidecaf.NameParser import ParamInfo
+from minidecaf.IRStr import BaseIRStr
+
 class IRContainer:
     '''
     A List Containing IR string, with add method
     __str__ method returns the string representation of IR
     '''
     def __init__(self):
-        self.ir_str_list = []
-    
+        self.curInstrs = []
+        self.curName = None
+        self.curParamInfo = None
+        self.funcs = []
+
     def __str__(self):
-        return "main:\n\t" + '\n\t'.join(map(str, self.ir_str_list))
+        return "main:\n\t" + '\n\t'.join(map(str, self.curInstrs))
 
     def add(self, ir:minidecaf.IRStr.BaseIRStr):
-        self.ir_str_list.append(ir)
+        self.curInstrs.append(ir)
+
     def addList(self, irList):
-        self.ir_str_list.extend(irList)
-    # def getIR(self):
-    #     return "main:\n\t" + '\n\t'.join(map(str, self.ir_str_list))
+        self.curInstrs.extend(irList)
+
+    def enterFunction(self, name:str, paramInfo):
+        self.curName = name
+        self.curParamInfo = paramInfo
+        self.curInstrs = []
+
+    def exitFunction(self):
+        self.funcs.append(IRFunc(self.curName, self.curParamInfo, self.curInstrs))
+
+    def getIR(self):
+        return "main:\n\t" + '\n\t'.join(map(str, self.funcs))
+
+class IRFunc:
+    '''
+    IR Function Container
+    '''
+    def __init__(self, name:str, paramInfo:ParamInfo, instrs:[BaseIRStr]):
+        self.name = name
+        self.paramInfo = paramInfo
+        self.instrs = instrs

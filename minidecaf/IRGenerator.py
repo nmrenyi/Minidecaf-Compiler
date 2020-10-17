@@ -12,12 +12,15 @@ class IRGenerator(MiniDecafVisitor):
         self._container = irContainer
         self.labelManager = LabelManager()
         self.nameManager = nameManager
-    
+        self._curFuncNameInfo = None
+
+
     def getPosition(self, term):
         '''
         return the position relative to fp for specific term
         '''
-        return self.nameManager[term].offset
+        return self._curFuncNameInfo[term].offset
+        # return self.nameManager[term].offset
 
     def loop(self, name, init, cond, body, post):
         '''
@@ -56,7 +59,7 @@ class IRGenerator(MiniDecafVisitor):
 
     def visitForDeclStmt(self, ctx:MiniDecafParser.ForDeclStmtContext):
         self.loop("for", ctx.init, ctx.ctrl, ctx.stmt(), ctx.post)
-        self._container.addList([IRStr.Pop()] * self.nameManager.blockSlots[ctx])
+        self._container.addList([IRStr.Pop()] * self._curFuncNameInfo.blockSlots[ctx])
 
     def visitForStmt(self, ctx:MiniDecafParser.ForStmtContext):
         self.loop("for", ctx.init, ctx.ctrl, ctx.stmt(), ctx.post)
@@ -101,7 +104,7 @@ class IRGenerator(MiniDecafVisitor):
         pop the variables defined in the block
         '''
         self.visitChildren(ctx)
-        self._container.addList([IRStr.Pop()] * self.nameManager.blockSlots[ctx])
+        self._container.addList([IRStr.Pop()] * self._curFuncNameInfo.blockSlots[ctx])
 
         
     def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
@@ -188,6 +191,41 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.eqOp() is not None:
             self._container.add(IRStr.Binary(ctx.eqOp().getText()))
     
+    def visitFuncDef(self, ctx:MiniDecafParser.FuncDefContext):
+        if ctx.Ident() is not None:
+            func = ctx.Ident().getText()
+            self._curFuncNameInfo = self.nameManager.nameManager[func]
+            paramInfo = self.nameManager.paramInfos[func]
+
+            self._container.enterFunction(func, paramInfo)
+            ctx.compound().accept(self)
+            self._container.exitFunction()
+
+    def visitMainFunc(self, ctx:MiniDecafParser.MainFuncContext):
+        func = 'main'
+        self._curFuncNameInfo = self.nameManager.nameManager[func]
+        paramInfo = self.nameManager.paramInfos[func]
+        self._container.enterFunction(func, paramInfo)
+        ctx.compound().accept(self)
+        self._container.exitFunction()
+
+    def visitFuncDecl(self, ctx:MiniDecafParser.FuncDeclContext):
+        pass
+
+    def visitAtomCall(self, ctx:MiniDecafParser.AtomCallContext):
+        args = ctx.argList().expr()
+        arg_cnt = 0
+        for arg in reversed(args):  # push into stack in a reversed way
+            arg.accept(self)
+            arg_cnt += 1
+
+        call_func_paramNum = self.nameManager.paramInfos[ctx.Ident().getText()].paramNum
+        assert arg_cnt == call_func_paramNum
+        if ctx.Ident() is not None:
+            func = ctx.Ident().getText()
+            self._container.add(IRStr.Call(func, self.nameManager.paramInfos[func].paramNum))
+
+
 class LabelManager:
     '''
     Label Manager

@@ -12,7 +12,7 @@ externalDecl
     ;
 
 main_func
-    : ty 'main' '(' ')' compound
+    : ty 'main' '(' paramList ')' compound # mainFunc
     ;
 
 func
@@ -71,11 +71,12 @@ conditional
 
 declaration
     : ty Ident ('=' expr)? ';'
+    | ty Ident ('=' expr)?
     ;
 
-decl_no_semiCol
-    : ty Ident ('=' expr)?
-    ;
+// decl_no_semiCol
+//     : ty Ident ('=' expr)?
+//     ;
 
 unary
     : atom

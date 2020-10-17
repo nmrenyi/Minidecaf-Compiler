@@ -1,6 +1,7 @@
 from minidecaf.utils import push_int
 from minidecaf.utils import push_reg
 from minidecaf.utils import pop
+# import minidecaf.AsmGenerator
 
 class BaseIRStr:
     '''
@@ -10,6 +11,20 @@ class BaseIRStr:
         return self.__str__()
     def genAsm(self):
         pass
+
+class Call(BaseIRStr):
+    '''
+    parameters are pushed onto stack from right to left before call instruction
+    '''
+    def __init__(self, func:str, para_cnt):
+        self.func = func
+        self.para_cnt = para_cnt
+
+    def __str__(self):
+        return f"call {self.func}"
+
+    def genAsm(self):
+        return [f'call {self.func}'] + pop(None) * self.para_cnt + push_reg('a0')
 
 class Const(BaseIRStr):
     '''

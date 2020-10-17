@@ -16,20 +16,32 @@ class AsmGenerator:
         self.writer = asmWriter
     
     def generate(self, ir:IRContainer):
-        self.generateHeader('main')
-        self.generateFromIR(ir)
-        self.generateEpilogue("main")
+        self.ir = ir
+        for func in ir.funcs:
+            self.curFunc = func.name
+            self.generateHeader(f"{func.name}", func.paramInfo)
+            self.generateFromIRList(func.instrs)
+            self.generateEpilogue(f"{func.name}")
+
+        # self.generateHeader('main')
+        # self.generateFromIR(ir)
+        # self.generateEpilogue("main")
 
 
-    def generateHeader(self, func_name:str):
+    def generateHeader(self, func_name:str, paramInfo):
         self.writer.writeList([
             AsmDirective(".text"),
             AsmDirective(f".globl {func_name}"),
             AsmLabel(f'{func_name}')] + 
             AsmInstructionList(push_reg('ra')).__str__().split('\n') + 
             AsmInstructionList(push_reg('fp')).__str__().split('\n') +
-            [AsmInstruction('mv fp, sp')
-            ])
+            [AsmInstruction('mv fp, sp')])
+
+        for i in range(paramInfo.paramNum):
+            fr, to = 4 * (i + 2), - 8 * (i + 1)
+            self.writer.writeList([
+                AsmInstruction(f"lw t1, {fr}(fp)")] +
+                AsmInstructionList(push_reg('t1')).__str__().split('\n'))
             
     def generateEpilogue(self, func:str):
         self.writer.writeList(
@@ -42,6 +54,10 @@ class AsmGenerator:
                 AsmInstructionList(pop('ra')).__str__().split('\n') + [
                 AsmInstruction("jr ra"),
             ])
+
+    def generateFromIRList(self, irList):
+        commandList = [AsmInstructionList(ir.genAsm()) for ir in irList]
+        self.writer.writeList(commandList)
 
     def generateFromIR(self, irContainer:IRContainer):
         commandList = [AsmInstructionList(ir.genAsm()) for ir in irContainer.ir_str_list]

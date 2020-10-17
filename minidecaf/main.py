@@ -51,7 +51,7 @@ def GenAsm(ir:IRContainer, output_file):
 def NameParse(tree):
     nameParser = NameParser()
     nameParser.visit(tree)
-    return nameParser.nameManager
+    return nameParser.funcNameManager
 
 def main():
     args = parseArgs(sys.argv)

@@ -14,24 +14,26 @@ class NameParser(MiniDecafVisitor):
         self.variableScope = StackedScopeManager() # mapping from str -> Variable
         self.scopeVarCnt = [] # number of variables in each block (accumulated count)
         self.totalVarCnt = 0 # totally defined variable count
-        self.nameManager = NameManager()
+        # self.nameManager = NameManager()
+        self.currentScopeInfo = None
+        self.funcNameManager = FuncInfo()
 
     def defVar(self, ctx, term):
         self.totalVarCnt += 1 # define a new variable, totalVar += 1
         variable = self.variableScope[term.getText()] = Variable(term.getText(), -4 * self.totalVarCnt)
-        self.nameManager.bind(term, variable)
+        self.currentScopeInfo.bind(term, variable)
 
     def useVar(self, ctx, term):
         if term is not None:
             variable = self.variableScope[term.getText()]
-            self.nameManager.bind(term, variable)
+            self.currentScopeInfo.bind(term, variable)
 
-    def enterScope(self, ctx):
-        self.variableScope.push() # push the ancestor var scope to current
+    def enterScope(self, ctx, is_func = False):
+        self.variableScope.push(is_func=is_func) # push the ancestor var scope to current
         self.scopeVarCnt.append(self.totalVarCnt) # update the var cnt till now
 
-    def exitScope(self, ctx):
-        self.nameManager.blockSlots[ctx] = self.totalVarCnt - self.scopeVarCnt[-1] # calculate the number of variables in current block (nowTotal - ancestorTotal)
+    def exitScope(self, ctx, ):
+        self.currentScopeInfo.blockSlots[ctx] = self.totalVarCnt - self.scopeVarCnt[-1] # calculate the number of variables in current block (nowTotal - ancestorTotal)
         self.totalVarCnt = self.scopeVarCnt[-1] # recover now totalVarCnt to ancestorVarCnt
         self.variableScope.pop() # pop out current block scope
         self.scopeVarCnt.pop() # pop out the ancestor var cnt pushed in enterScope()
@@ -51,8 +53,8 @@ class NameParser(MiniDecafVisitor):
         declaration
         : ty Ident ('=' expr)? ';'
         ;
-        
         '''
+
         if ctx.expr() is not None:
             ctx.expr().accept(self)
         if ctx.Ident() is not None:
@@ -103,6 +105,44 @@ class NameParser(MiniDecafVisitor):
                 raise Exception(f"undefined reference to {var}")
         self.useVar(ctx, ctx.Ident())
 
+    def func(self, ctx, type_name="def", is_main = False):
+        if is_main:
+            func = 'main'
+        elif ctx.Ident() is not None:
+            func = ctx.Ident().getText()
+
+        if type_name == "def":
+            if func in self.funcNameManager.nameManager:
+                raise Exception(f"redefinition of function {func}")
+        currentScope = self.currentScopeInfo = NameManager()
+        self.enterScope(ctx, is_func = True)
+        paramInfo = ParamInfo(ctx.paramList().accept(self))
+        if func in self.funcNameManager.paramInfos:
+            if not paramInfo.compatible(self.funcNameManager.paramInfos[func]):
+                raise Exception(f"conflicting type for {func}")
+        if type_name == "def":
+            self.funcNameManager.enterFunction(func, currentScope, paramInfo)
+            ctx.compound().accept(self)
+        elif type_name == "decl":
+            if func not in self.funcNameManager.nameManager:
+                self.funcNameManager.paramInfos[func] = paramInfo
+        self.exitScope(ctx)
+
+    def visitMainFunc(self, ctx:MiniDecafParser.MainFuncContext):
+        self.func(ctx, 'def', True)
+
+    def visitFuncDef(self, ctx:MiniDecafParser.FuncDefContext):
+        self.func(ctx, "def")
+
+    def visitFuncDecl(self, ctx:MiniDecafParser.FuncDeclContext):
+        self.func(ctx, "decl")
+
+    def visitParamList(self, ctx:MiniDecafParser.ParamListContext):
+        self.visitChildren(ctx)
+        def f(declaration):
+            if declaration.Ident() is not None:
+                return self.variableScope[declaration.Ident().getText()]
+        return list(map(f, ctx.declaration()))
 
 class Variable:
     '''
@@ -171,7 +211,13 @@ class StackedScopeManager:
         '''
         self.globalScope = [{}] # global var scope list (accumulative)
         self.currentScope = [{}] # local var scope list
+        self.isFuncList = []
 
+    def __repr__(self):
+        return self.__str__()
+    def __str__(self):
+        return '\nglobalScope: '+ str(self.globalScope) + '\n' + 'currentScope:' + str(self.currentScope)
+    
     def __getitem__(self, name:str):
         '''
         return the Variable object corresponding to the variable name
@@ -194,13 +240,22 @@ class StackedScopeManager:
     def __len__(self):
         return len(self.globalScope[-1])
 
-    def push(self):
+    def push(self, is_func=False):
         '''
         copy the previous global scope element to the new global scope element
         create the empty current scope element
         '''
+        self.isFuncList.append(is_func)
+
+        if len(self.isFuncList) > 1 and self.isFuncList[-2]:
+            self.currentScope.append(deepcopy(self.globalScope[-1]))
+        else:
+            self.currentScope.append({})
+
+        # self.currentScope.append({})
         self.globalScope.append(deepcopy(self.globalScope[-1]))
-        self.currentScope.append({})
+        # print(self.currentScope)
+        # print(self.globalScope)
 
     def pop(self):
         '''
@@ -209,6 +264,7 @@ class StackedScopeManager:
         assert len(self.globalScope) > 1
         self.globalScope.pop()
         self.currentScope.pop()
+        self.isFuncList.pop()
 
     def currentScopeDict(self, last=0):
         '''
@@ -216,3 +272,30 @@ class StackedScopeManager:
         for redefinition check
         '''
         return self.currentScope[-1-last]
+
+class ParamInfo:
+    '''
+    parameter list manager
+    '''
+    def __init__(self, vars:[Variable]):
+        self.vars = vars
+        self.paramNum = len(vars)
+
+    def compatible(self, other):
+        return self.paramNum == other.paramNum
+
+
+class FuncInfo:
+    '''
+    Parser for function
+    Ref to TA's implementation
+    '''
+    def __init__(self):
+        self.nameManager = {} # str -> NameManager. Initialized by Def.
+        self.paramInfos = {} # str -> ParamInfo. Fixed by Def; can be initialized by Decl.
+
+    def enterFunction(self, func:str, funcNameInfo: NameManager, paramInfo:ParamInfo):
+        self.nameManager[func] = funcNameInfo
+        self.paramInfos[func] = paramInfo
+
+
