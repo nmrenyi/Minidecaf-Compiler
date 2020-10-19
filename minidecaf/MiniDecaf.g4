@@ -90,9 +90,10 @@ cast
     ;
 
 postfix
-    : atom # tPostfix
+    : 
+    Ident '(' argList ')' # postfixCall
+    | atom # tPostfix
     | postfix '[' expr ']' # postfixArray
-    | Ident '(' argList ')' # postfixCall
     ;
     
 unaryOp
@@ -103,7 +104,7 @@ atom
     : Integer # atomInteger
     | '(' expr ')' # atomParen
     | Ident # atomIdent
-    | Ident '(' argList ')' # atomCall
+    // | Ident '(' argList ')' # atomCall
     ;
 
 additive

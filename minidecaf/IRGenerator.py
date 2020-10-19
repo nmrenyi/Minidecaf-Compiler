@@ -259,7 +259,7 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.Ident() is not None:
             self._container.addFuncDecl(ctx.Ident().getText())
 
-    def visitAtomCall(self, ctx:MiniDecafParser.AtomCallContext):
+    def visitPostfixCall(self, ctx:MiniDecafParser.PostfixContext):
         args = ctx.argList().expr()
         arg_cnt = 0
         for arg in reversed(args):  # push into stack in a reversed way

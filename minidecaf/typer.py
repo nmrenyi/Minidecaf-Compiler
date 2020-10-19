@@ -205,12 +205,12 @@ class Typer(MiniDecafVisitor):
         rule = self.typeInfo.funcs[func].call()
         return rule(ctx, argTy)
 
-    @SaveType
-    def visitAtomCall(self, ctx:MiniDecafParser.AtomCallContext):
-        argTy = self._argTy(ctx.argList())
-        func = ctx.Ident().getText()
-        rule = self.typeInfo.funcs[func].call()
-        return rule(ctx, argTy)
+    # @SaveType
+    # def visitAtomCall(self, ctx:MiniDecafParser.AtomCallContext):
+    #     argTy = self._argTy(ctx.argList())
+    #     func = ctx.Ident().getText()
+    #     rule = self.typeInfo.funcs[func].call()
+    #     return rule(ctx, argTy)
 
     @SaveType
     def visitPostfixArray(self, ctx:MiniDecafParser.PostfixArrayContext):
