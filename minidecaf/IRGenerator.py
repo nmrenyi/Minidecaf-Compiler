@@ -1,7 +1,8 @@
 from .generated.MiniDecafVisitor import MiniDecafVisitor
 from .generated.MiniDecafParser import MiniDecafParser
 import minidecaf.IRStr as IRStr
-
+from .NameParser import Variable
+from .IRStr import Unary
 
 class IRGenerator(MiniDecafVisitor):
     '''
@@ -14,6 +15,14 @@ class IRGenerator(MiniDecafVisitor):
         self.nameManager = nameManager
         self._curFuncNameInfo = None
 
+    def _var(self, term):
+        return self._curFuncNameInfo[term]
+
+    def emitVar(self, var:Variable):
+        if var.offset is None:
+            self._container.add(IRStr.GlobalSymbol(var.name))
+        else:
+            self._container.add(IRStr.FrameSlot(var.offset))
 
     def getPosition(self, term):
         '''
@@ -108,18 +117,21 @@ class IRGenerator(MiniDecafVisitor):
         self.visitChildren(ctx)
         self._container.addList([IRStr.Pop()] * self._curFuncNameInfo.blockSlots[ctx])
 
-        
+    def _computeAddr(self, lvalue:Unary):
+        if isinstance(lvalue, MiniDecafParser.TUnaryContext):
+            return self._computeAddr(lvalue.postfix())
+        if isinstance(lvalue, MiniDecafParser.PostfixContext):
+            return self._computeAddr(lvalue.atom())
+        if isinstance(lvalue, MiniDecafParser.AtomIdentContext):
+            var = self._var(lvalue.Ident())
+            return self.emitVar(var)
+        elif isinstance(lvalue, MiniDecafParser.AtomParenContext):
+            return self._computeAddr(lvalue.expr())
+        raise Exception(f"{lvalue.getText()} is not a lvalue")
+
     def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
         ctx.assignment().accept(self)
-        if ctx.Ident() is not None:
-            offset = self.getPosition(ctx.Ident())
-            if offset is None:
-                self._container.add(IRStr.GlobalSymbol(self.getIdent(ctx.Ident())))
-            else:
-                self._container.add(IRStr.FrameSlot(offset)) # get position from nameManager
-            # self._container.add(IRStr.FrameSlot(self.getPosition(ctx.Ident())))
-        else:
-            raise Exception('Identifier Not Found')
+        self._computeAddr(ctx.unary())
         self._container.add(IRStr.Store())
 
     def visitIfStmt(self, ctx:MiniDecafParser.IfStmtContext):
@@ -161,7 +173,7 @@ class IRGenerator(MiniDecafVisitor):
             self._container.add(IRStr.FrameSlot(offset)) # get position from nameManager
         self._container.add(IRStr.Load())
 
-    def visitUnary(self, ctx:MiniDecafParser.UnaryContext):
+    def visitCUnary(self, ctx:MiniDecafParser.CUnaryContext):
         self.visitChildren(ctx)
         if ctx.unaryOp() is not None:
             self._container.add(IRStr.Unary(ctx.unaryOp().getText()))

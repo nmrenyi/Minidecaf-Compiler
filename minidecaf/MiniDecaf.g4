@@ -80,8 +80,8 @@ declaration
 //     ;
 
 unary
-    : postfix
-    | unaryOp unary
+    : postfix # tUnary
+    | unaryOp unary # cUnary
     ;
 
 postfix
@@ -89,9 +89,9 @@ postfix
     | postfix '[' expr ']' # postfixArray
     | Ident '(' argList ')' # postfixCall
     ;
-
+    
 unaryOp
-    : '-' | '!' | '~'
+    : '-' | '!' | '~' | '*' | '&'
     ;
 
 atom

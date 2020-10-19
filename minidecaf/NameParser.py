@@ -2,6 +2,7 @@ from .generated.MiniDecafVisitor import MiniDecafVisitor
 from .generated.MiniDecafParser import MiniDecafParser
 from copy import deepcopy
 import antlr4
+from .IRStr import Unary
 
 class NameParser(MiniDecafVisitor):
     '''
@@ -68,22 +69,22 @@ class NameParser(MiniDecafVisitor):
         self.visitChildren(ctx)
         self.exitScope(ctx)
 
-    def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
-        '''
-        in Minidecaf.g4
+    # def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
+    #     '''
+    #     in Minidecaf.g4
 
-        assignment
-        : conditional # noAsgn
-        | Ident '=' assignment # withAsgn
-        ;
+    #     assignment
+    #     : conditional # noAsgn
+    #     | Ident '=' assignment # withAsgn
+    #     ;
 
-        '''
-        ctx.assignment().accept(self)  # process the following assignment first! DO NOT LEAVE OUT THIS LINE
-        if ctx.Ident() is not None:
-            var = ctx.Ident().getText()
-            if var not in self.variableScope:
-                raise Exception(f"undefined reference to {var}")
-        self.useVar(ctx, ctx.Ident())
+    #     '''
+    #     ctx.assignment().accept(self)  # process the following assignment first! DO NOT LEAVE OUT THIS LINE
+    #     if ctx.Ident() is not None:
+    #         var = ctx.Ident().getText()
+    #         if var not in self.variableScope:
+    #             raise Exception(f"undefined reference to {var}")
+    #     self.useVar(ctx, ctx.Ident())
     
     def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
         '''
