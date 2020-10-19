@@ -2,18 +2,20 @@ from .generated.MiniDecafVisitor import MiniDecafVisitor
 from .generated.MiniDecafParser import MiniDecafParser
 import minidecaf.IRStr as IRStr
 from .NameParser import Variable
-from .IRStr import Unary
+from .IRStr import Unary, Binary, Const, BaseIRStr
+from .types import ArrayType, PtrType
 
 class IRGenerator(MiniDecafVisitor):
     '''
     A visitor for going through the whole ast, inherited from MiniDecafVisitor
     The accept method in different node uses the vistor's different methods, that is the visitor pattern.
     '''
-    def __init__(self, irContainer, nameManager):
+    def __init__(self, irContainer, nameManager, typeInfo):
         self._container = irContainer
         self.labelManager = LabelManager()
         self.nameManager = nameManager
         self._curFuncNameInfo = None
+        self.typeInfo = typeInfo
 
     def _var(self, term):
         return self._curFuncNameInfo[term]
@@ -131,7 +133,8 @@ class IRGenerator(MiniDecafVisitor):
 
     def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
         ctx.assignment().accept(self)
-        self._computeAddr(ctx.unary())
+        # self._computeAddr(ctx.unary())
+        self.emitLoc(ctx.unary())
         self._container.add(IRStr.Store())
 
     def visitIfStmt(self, ctx:MiniDecafParser.IfStmtContext):
@@ -171,12 +174,25 @@ class IRGenerator(MiniDecafVisitor):
             self._container.add(IRStr.GlobalSymbol(self.getIdent(ctx.Ident())))
         else:
             self._container.add(IRStr.FrameSlot(offset)) # get position from nameManager
-        self._container.add(IRStr.Load())
+        if not isinstance(self.typeInfo[ctx], ArrayType):
+            self._container.add(IRStr.Load())
 
     def visitCUnary(self, ctx:MiniDecafParser.CUnaryContext):
-        self.visitChildren(ctx)
         if ctx.unaryOp() is not None:
-            self._container.add(IRStr.Unary(ctx.unaryOp().getText()))
+            op = ctx.unaryOp().getText()
+            if op == '&':
+                self.emitLoc(ctx.cast())
+            elif op == '*':
+                self.visitChildren(ctx)
+                self._container.add(IRStr.Load())
+            else:
+                self.visitChildren(ctx)
+                self._container.add(Unary(op))
+
+    # def visitCUnary(self, ctx:MiniDecafParser.CUnaryContext):
+    #     self.visitChildren(ctx)
+    #     if ctx.unaryOp() is not None:
+    #         self._container.add(IRStr.Unary(ctx.unaryOp().getText()))
     
     def visitAtomInteger(self, ctx:MiniDecafParser.AtomIntegerContext):
         # no children in atomInteger branch, get the Integer DIRECTLY
@@ -184,11 +200,15 @@ class IRGenerator(MiniDecafVisitor):
             v = int(ctx.Integer().getText())
             self._container.add(IRStr.Const(v))
 
-    def visitCAdd(self, ctx:MiniDecafParser.CAddContext):
-        self.visitChildren(ctx)
-        if ctx.addOp() is not None:
-            self._container.add(IRStr.Binary(ctx.addOp().getText()))
+    # def visitCAdd(self, ctx:MiniDecafParser.CAddContext):
+    #     self.visitChildren(ctx)
+    #     if ctx.addOp() is not None:
+    #         self._container.add(IRStr.Binary(ctx.addOp().getText()))
     
+    def visitCAdd(self, ctx:MiniDecafParser.CAddContext):
+        if ctx.addOp() is not None:
+            self._addExpr(ctx, ctx.addOp().getText(), ctx.additive(), ctx.multiplicative())
+
     def visitCMul(self, ctx:MiniDecafParser.CMulContext):
         self.visitChildren(ctx)
         if ctx.mulOp() is not None:
@@ -218,6 +238,8 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.Ident() is not None:
             func = ctx.Ident().getText()
             self._curFuncNameInfo = self.nameManager.nameManager[func]
+            
+            # nParams = len(self.typeInfo.funcs[func].paramTy)
             paramInfo = self.nameManager.paramInfos[func]
 
             self._container.enterFunction(func, paramInfo)
@@ -254,6 +276,46 @@ class IRGenerator(MiniDecafVisitor):
         for globInfo in self.nameManager.globInfos.values():
             self._container.addGlobal(globInfo)
         self.visitChildren(ctx)
+    def _addExpr(self, ctx, op, lhs, rhs):
+        if isinstance(self.typeInfo[lhs], PtrType):
+            sz = self.typeInfo[lhs].sizeof()
+            if isinstance(self.typeInfo[rhs], PtrType): # ptr - ptr
+                lhs.accept(self)
+                rhs.accept(self)
+                self._container.addList([Binary(op)])
+                self._container.addList([Const(sz), Binary('/')])
+            else: # ptr +- int
+                lhs.accept(self)
+                rhs.accept(self)
+                self._container.addList([Const(sz), Binary('*')])
+                self._container.addList([Binary(op)])
+        else:
+            sz = self.typeInfo[rhs].sizeof()
+            if isinstance(self.typeInfo[rhs], PtrType): # int +- ptr
+                lhs.accept(self)
+                self._container.addList([Const(sz), Binary('*')])
+                rhs.accept(self)
+                self._container.addList([Binary(op)])
+            else: # int +- int
+                self.visitChildren(ctx)
+                self._container.addList([Binary(op)])
+
+
+    def emitLoc(self, lvalue:MiniDecafParser.ExprContext):
+        loc = self.typeInfo.lvalueLoc(lvalue)
+        for locStep in loc:
+            if isinstance(locStep, BaseIRStr):
+                self._container.addList([locStep])
+            else:
+                locStep.accept(self)
+
+    def visitPostfixArray(self, ctx:MiniDecafParser.PostfixArrayContext):
+        fixupMult = self.typeInfo[ctx.postfix()].base.sizeof()
+        ctx.postfix().accept(self)
+        ctx.expr().accept(self)
+        self._container.addList([Const(fixupMult), Binary('*'), Binary('+')])
+        if not isinstance(self.typeInfo[ctx], ArrayType):
+            self._container.addList([IRStr.Load()])
 
 
 class LabelManager:
@@ -308,3 +370,4 @@ class LabelManager:
         if len(self.loopExit) == 0:
             raise Exception("continue not in a loop")
         return self.loopEntry[-1]
+

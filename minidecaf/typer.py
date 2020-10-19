@@ -159,47 +159,54 @@ class Typer(MiniDecafVisitor):
     @SaveType
     def visitCAdd(self, ctx:MiniDecafParser.CAddContext):
         return self.checkBinary(ctx.addOp(), ctx.addOp().getText(),
-                ctx.add().accept(self), ctx.mul().accept(self))
+                ctx.additive().accept(self), ctx.multiplicative().accept(self))
 
     @SaveType
     def visitCMul(self, ctx:MiniDecafParser.CMulContext):
         return self.checkBinary(ctx.mulOp(), ctx.mulOp().getText(),
-                ctx.mul().accept(self), ctx.cast().accept(self))
+                ctx.multiplicative().accept(self), ctx.cast().accept(self))
 
     @SaveType
     def visitCRel(self, ctx:MiniDecafParser.CRelContext):
         return self.checkBinary(ctx.relOp(), ctx.relOp().getText(),
-                ctx.rel().accept(self), ctx.add().accept(self))
+                ctx.relational().accept(self), ctx.additive().accept(self))
 
     @SaveType
     def visitCEq(self, ctx:MiniDecafParser.CEqContext):
         return self.checkBinary(ctx.eqOp(), ctx.eqOp().getText(),
-                ctx.eq().accept(self), ctx.rel().accept(self))
+                ctx.equality().accept(self), ctx.relational().accept(self))
 
     @SaveType
     def visitCLand(self, ctx:MiniDecafParser.CLandContext):
         return self.checkBinary(ctx, "&&",
-                ctx.land().accept(self), ctx.eq().accept(self))
+                ctx.logicalAnd().accept(self), ctx.equality().accept(self))
 
     @SaveType
     def visitCLor(self, ctx:MiniDecafParser.CLorContext):
         return self.checkBinary(ctx, "||",
-                ctx.lor().accept(self), ctx.land().accept(self))
+                ctx.logicalOr().accept(self), ctx.logicalAnd().accept(self))
 
     @SaveType
     def visitWithCond(self, ctx:MiniDecafParser.WithCondContext):
-        return condRule(ctx, ctx.lor().accept(self),
-                ctx.expr().accept(self), ctx.cond().accept(self))
+        return condRule(ctx, ctx.logicalOr().accept(self),
+                ctx.expr().accept(self), ctx.conditional().accept(self))
 
     @SaveType
     def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
         res = self.checkBinary(ctx.asgnOp(), ctx.asgnOp().getText(),
-                ctx.unary().accept(self), ctx.asgn().accept(self))
+                ctx.unary().accept(self), ctx.assignment().accept(self))
         self.locate(ctx.unary())
         return res
 
     @SaveType
     def visitPostfixCall(self, ctx:MiniDecafParser.PostfixCallContext):
+        argTy = self._argTy(ctx.argList())
+        func = ctx.Ident().getText()
+        rule = self.typeInfo.funcs[func].call()
+        return rule(ctx, argTy)
+
+    @SaveType
+    def visitAtomCall(self, ctx:MiniDecafParser.AtomCallContext):
         argTy = self._argTy(ctx.argList())
         func = ctx.Ident().getText()
         rule = self.typeInfo.funcs[func].call()
@@ -274,7 +281,7 @@ class Typer(MiniDecafVisitor):
         return res
 
     def visitDeclExternalDecl(self, ctx:MiniDecafParser.DeclExternalDeclContext):
-        ctx = ctx.decl()
+        ctx = ctx.declaration()
         var = self.nameInfo.globs[ctx.Ident().getText()].var
         ty = self._declTyp(ctx)
         if var in self.vartyp:
@@ -327,7 +334,7 @@ class Locator(MiniDecafVisitor):
     def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
         var = self.nameInfo[ctx.Ident()]
         if var.offset is None:
-            return [GlobalSymbol(var.ident)]
+            return [GlobalSymbol(var.name)]
         else:
             return [FrameSlot(var.offset)]
 

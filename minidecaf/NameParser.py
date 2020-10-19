@@ -44,6 +44,10 @@ class NameParser(MiniDecafVisitor):
         self.visitChildren(ctx)
         self.exitScope(ctx)
 
+    def visitProg(self, ctx:MiniDecafParser.ProgContext):
+        self.visitChildren(ctx)
+        self.funcNameManager.freeze()
+
     def visitDeclaration(self, ctx:MiniDecafParser.DeclarationContext):
         '''
         in Minidecaf.g4
@@ -177,6 +181,7 @@ class NameParser(MiniDecafVisitor):
             else:
                 self.variableScope[varStr] = var
                 self.funcNameManager.globInfos[var] = globInfo
+                self.funcNameManager.globs[varStr] = globInfo
 
 
 class Variable:
@@ -329,10 +334,19 @@ class FuncInfo:
         self.nameManager = {} # str -> NameManager. Initialized by Def.
         self.paramInfos = {} # str -> ParamInfo. Fixed by Def; can be initialized by Decl.
         self.globInfos = {} # Variable -> GlobInfo.
+        self.term2Var = {}
+        self.globs = {} # str -> GlobInfo
 
     def enterFunction(self, func:str, funcNameInfo: NameManager, paramInfo:ParamInfo):
         self.nameManager[func] = funcNameInfo
         self.paramInfos[func] = paramInfo
+
+    def freeze(self):
+        for funcNameInfo in self.nameManager.values():
+            self.term2Var.update(funcNameInfo.term2Var)
+
+    def __getitem__(self, ctx):
+        return self.term2Var[ctx]
 
 
 class GlobInfo:

@@ -34,9 +34,9 @@ def Lexer(inputStream):
     tokenStream = antlr4.CommonTokenStream(lexer)
     return tokenStream
 
-def GenIR(tree, nameManager):
+def GenIR(tree, nameManager, typeInfo):
     irContainer = IRContainer()
-    IRGenerator(irContainer, nameManager).visit(tree)
+    IRGenerator(irContainer, nameManager, typeInfo).visit(tree)
     return irContainer
 
 def GenAsm(ir:IRContainer, output_file):
@@ -66,8 +66,8 @@ def main():
     tokenStream = Lexer(inputStream)
     tree = Parser(tokenStream)
     nameManager = NameParse(tree)
-    # typeInfo = CheckType(tree, nameManager)
-    ir = GenIR(tree, nameManager)
+    typeInfo = CheckType(tree, nameManager)
+    ir = GenIR(tree, nameManager, typeInfo)
     if args.ir:
         print(ir)
     else:

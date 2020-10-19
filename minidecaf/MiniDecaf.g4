@@ -63,7 +63,7 @@ expr
 
 assignment
     : conditional # noAsgn
-    | unary '=' assignment # withAsgn
+    | unary asgnOp assignment # withAsgn
     ;
 
 conditional
@@ -158,4 +158,8 @@ relOp
 
 eqOp
     : '==' | '!='
+    ;
+
+asgnOp
+    : '='
     ;
