@@ -107,33 +107,33 @@ atom
     ;
 
 additive
-    : multiplicative
-    | additive addOp multiplicative
+    : multiplicative # tAdd
+    | additive addOp multiplicative # cAdd
     ;
 
 multiplicative
-    : cast
-    | multiplicative mulOp cast
+    : cast # tMul
+    | multiplicative mulOp cast # cMul
     ;
 
 equality
-    : relational
-    | equality eqOp relational
+    : relational # tEq
+    | equality eqOp relational # cEq
     ;
 
 relational
-    : additive
-    | relational relOp additive
+    : additive # tRel
+    | relational relOp additive # cRel
     ;
 
 logicalOr
-    : logicalAnd
-    | logicalOr orOp logicalAnd
+    : logicalAnd # tLor
+    | logicalOr orOp logicalAnd # cLor
     ;
 
 logicalAnd
-    : equality
-    | logicalAnd andOp equality
+    : equality # tLand
+    | logicalAnd andOp equality # cLand
     ;
 
 orOp

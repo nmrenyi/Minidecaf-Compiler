@@ -12,6 +12,8 @@ from minidecaf.IRGenerator import IRGenerator
 from minidecaf.AsmWriter import AsmWriter
 from minidecaf.AsmGenerator import AsmGenerator
 from minidecaf.NameParser import NameParser
+from minidecaf.typer import Typer
+
 def parseArgs(argv):
     parser = argparse.ArgumentParser(description="MiniDecaf compiler by RenYi 2018011423")
     parser.add_argument("infile", type=str,
@@ -53,12 +55,18 @@ def NameParse(tree):
     nameParser.visit(tree)
     return nameParser.funcNameManager
 
+def CheckType(tree, nameInfo):
+    typer = Typer(nameInfo)
+    typer.visit(tree)
+    return typer.typeInfo
+
 def main():
     args = parseArgs(sys.argv)
     inputStream = antlr4.FileStream(args.infile)
     tokenStream = Lexer(inputStream)
     tree = Parser(tokenStream)
     nameManager = NameParse(tree)
+    # typeInfo = CheckType(tree, nameManager)
     ir = GenIR(tree, nameManager)
     if args.ir:
         print(ir)
