@@ -156,7 +156,7 @@ class IRGenerator(MiniDecafVisitor):
         '''
         Reference to TA implementation
         '''
-        ctx.logicalOr().accept(self) # calc logicalOr first
+        ctx.logicalOr().accept(self) # calc CLor first
         exitLabel = self.labelManager.newLabel("cond_end")
         elseLabel = self.labelManager.newLabel("cond_else")
         self._container.add(IRStr.Branch("beqz", elseLabel)) # if false, go to else
@@ -184,32 +184,32 @@ class IRGenerator(MiniDecafVisitor):
             v = int(ctx.Integer().getText())
             self._container.add(IRStr.Const(v))
 
-    def visitAdditive(self, ctx:MiniDecafParser.AdditiveContext):
+    def visitCAdd(self, ctx:MiniDecafParser.CAddContext):
         self.visitChildren(ctx)
         if ctx.addOp() is not None:
             self._container.add(IRStr.Binary(ctx.addOp().getText()))
     
-    def visitMultiplicative(self, ctx:MiniDecafParser.MultiplicativeContext):
+    def visitCMul(self, ctx:MiniDecafParser.CMulContext):
         self.visitChildren(ctx)
         if ctx.mulOp() is not None:
             self._container.add(IRStr.Binary(ctx.mulOp().getText()))
 
-    def visitLogicalAnd(self, ctx:MiniDecafParser.LogicalAndContext):
+    def visitCLand(self, ctx:MiniDecafParser.CLandContext):
         self.visitChildren(ctx)
         if ctx.andOp() is not None:
             self._container.add(IRStr.Binary(ctx.andOp().getText()))
 
-    def visitLogicalOr(self, ctx:MiniDecafParser.LogicalOrContext):
+    def visitCLor(self, ctx:MiniDecafParser.CLorContext):
         self.visitChildren(ctx)
         if ctx.orOp() is not None:
             self._container.add(IRStr.Binary(ctx.orOp().getText()))
 
-    def visitRelational(self, ctx:MiniDecafParser.RelationalContext):
+    def visitCRel(self, ctx:MiniDecafParser.CRelContext):
         self.visitChildren(ctx)
         if ctx.relOp() is not None:
             self._container.add(IRStr.Binary(ctx.relOp().getText()))
     
-    def visitEquality(self, ctx:MiniDecafParser.EqualityContext):
+    def visitCEq(self, ctx:MiniDecafParser.CEqContext):
         self.visitChildren(ctx)
         if ctx.eqOp() is not None:
             self._container.add(IRStr.Binary(ctx.eqOp().getText()))
