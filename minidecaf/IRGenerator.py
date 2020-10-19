@@ -4,6 +4,7 @@ import minidecaf.IRStr as IRStr
 from .NameParser import Variable
 from .IRStr import Unary, Binary, Const, BaseIRStr
 from .types import ArrayType, PtrType
+from .NameParser import FuncInfo
 
 class IRGenerator(MiniDecafVisitor):
     '''
@@ -112,11 +113,21 @@ class IRGenerator(MiniDecafVisitor):
     #             self._container.add(IRStr.Const(0)) # default value is zero
 
     def visitDeclaration(self, ctx:MiniDecafParser.DeclarationContext):
-        var = self.nameManager[ctx.Ident()]
+        # var = self.nameManager[ctx.Ident()]
+        var = self.nameManager.term2Var[ctx.Ident()]
         if ctx.expr() is not None:
             ctx.expr().accept(self)
         else:
             self._container.addList([Const(0)] * (var.size//4))
+
+    def visitDeclExternalDecl(self, ctx:MiniDecafParser.DeclExternalDeclContext):
+        ctx = ctx.declaration()
+        var = self.nameManager.globsTerm2Var[ctx.Ident()]
+        if ctx.expr() is not None:
+            ctx.expr().accept(self)
+        else:
+            self._container.addList([Const(0)] * (var.size//4))
+
 
     def visitCompound(self, ctx:MiniDecafParser.CompoundContext):
         '''

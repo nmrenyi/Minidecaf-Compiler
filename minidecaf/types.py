@@ -108,7 +108,7 @@ def tryEach(name="tryEach", *fs):
             try:
                 return f(ctx, *inTy)
             except Exception as e:
-                errs += [e.msg]
+                errs += [e]
         return f"{name}:\n\t" + '\n\t'.join(map(str, errs))
     g.__name__ = name # black magic
     return g

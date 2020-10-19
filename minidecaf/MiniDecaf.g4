@@ -3,11 +3,11 @@ grammar MiniDecaf;
 import CommonLex;
 
 prog
-    : externalDecl+ EOF  // Add EOF for tailing trash
+    : externalDecl* main_func externalDecl* EOF  // Add EOF for tailing trash
     ;
 
 externalDecl
-    : func* main_func func* # funcExternalDecl
+    : func # funcExternalDecl
     | declaration ';' # declExternalDecl
     ;
 

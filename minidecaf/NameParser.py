@@ -26,8 +26,8 @@ class NameParser(MiniDecafVisitor):
             variable = self.variableScope[term.getText()]
             self.currentScopeInfo.bind(term, variable)
 
-    def enterScope(self, ctx, is_func = False):
-        self.variableScope.push(is_func=is_func) # push the ancestor var scope to current
+    def enterScope(self, ctx, is_func = False,isMain=False):
+        self.variableScope.push(is_func=is_func, isMain=isMain) # push the ancestor var scope to current
         self.scopeVarCnt.append(self.totalVarCnt) # update the var cnt till now
 
     def exitScope(self, ctx, ):
@@ -130,7 +130,7 @@ class NameParser(MiniDecafVisitor):
             if func in self.funcNameManager.nameManager:
                 raise Exception(f"redefinition of function {func}")
         currentScope = self.currentScopeInfo = NameManager()
-        self.enterScope(ctx, is_func = True)
+        self.enterScope(ctx, is_func = True, isMain=is_main)
         paramInfo = ParamInfo(ctx.paramList().accept(self))
         if func in self.funcNameManager.paramInfos:
             if not paramInfo.compatible(self.funcNameManager.paramInfos[func]):
@@ -169,7 +169,7 @@ class NameParser(MiniDecafVisitor):
         if ctx is None:
             return None
         try:
-            return safeEval(ctx.getText(), {}, {})
+            return eval(ctx.getText(), {}, {})
         except:
             raise Exception("global initializers must be constants")
 
@@ -198,7 +198,7 @@ class NameParser(MiniDecafVisitor):
                 self.variableScope[varStr] = var
                 self.funcNameManager.globInfos[var] = globInfo
                 self.funcNameManager.globs[varStr] = globInfo
-
+                self.funcNameManager.globsTerm2Var[ctx.Ident()] = var
 
 class Variable:
     '''
@@ -244,7 +244,7 @@ class NameManager:
         '''
         create mapping from term to variable
         '''
-        print('bind', term, term.__repr__())
+        # print('bind', term, term.__repr__())
         self.term2Var[term] = var
 
     def __getitem__(self, term:antlr4.tree.Tree.TerminalNodeImpl):
@@ -269,6 +269,7 @@ class StackedScopeManager:
         self.globalScope = [{}] # global var scope list (accumulative)
         self.currentScope = [{}] # local var scope list
         self.isFuncList = []
+        self.isMainList = []
 
     def __repr__(self):
         return self.__str__()
@@ -297,14 +298,14 @@ class StackedScopeManager:
     def __len__(self):
         return len(self.globalScope[-1])
 
-    def push(self, is_func=False):
+    def push(self, is_func=False, isMain=False):
         '''
         copy the previous global scope element to the new global scope element
         create the empty current scope element
         '''
         self.isFuncList.append(is_func)
-
-        if len(self.isFuncList) > 1 and self.isFuncList[-2]:
+        self.isMainList.append(isMain)
+        if len(self.isFuncList) > 1 and self.isFuncList[-2] and not self.isMainList[-2]:
             self.currentScope.append(deepcopy(self.globalScope[-1]))
         else:
             self.currentScope.append({})
@@ -353,6 +354,7 @@ class FuncInfo:
         self.globInfos = {} # Variable -> GlobInfo.
         self.term2Var = {}
         self.globs = {} # str -> GlobInfo
+        self.globsTerm2Var = {} # term -> Var
 
     def enterFunction(self, func:str, funcNameInfo: NameManager, paramInfo:ParamInfo):
         self.nameManager[func] = funcNameInfo
