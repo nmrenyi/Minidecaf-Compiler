@@ -81,7 +81,12 @@ declaration
 
 unary
     : postfix # tUnary
-    | unaryOp unary # cUnary
+    | unaryOp cast # cUnary
+    ;
+
+cast
+    : unary # tCast
+    | '(' ty ')' cast # cCast
     ;
 
 postfix
@@ -107,8 +112,8 @@ additive
     ;
 
 multiplicative
-    : unary
-    | multiplicative mulOp unary
+    : cast
+    | multiplicative mulOp cast
     ;
 
 equality
