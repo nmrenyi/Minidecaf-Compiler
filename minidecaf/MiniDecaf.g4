@@ -29,7 +29,9 @@ argList
     ;
 
 ty
-    : 'int'
+    : 'int' # intType
+    | ty '*' # ptrType
+
     ;
 
 stmt
@@ -61,7 +63,7 @@ expr
 
 assignment
     : conditional # noAsgn
-    | Ident '=' assignment # withAsgn
+    | unary '=' assignment # withAsgn
     ;
 
 conditional
@@ -70,8 +72,7 @@ conditional
     ;
 
 declaration
-    : ty Ident ('=' expr)? ';'
-    | ty Ident ('=' expr)?
+    : ty Ident ('[' Integer ']')* ('=' expr)? ';'?
     ;
 
 // decl_no_semiCol
@@ -79,8 +80,14 @@ declaration
 //     ;
 
 unary
-    : atom
+    : postfix
     | unaryOp unary
+    ;
+
+postfix
+    : atom # tPostfix
+    | postfix '[' expr ']' # postfixArray
+    | Ident '(' argList ')' # postfixCall
     ;
 
 unaryOp
