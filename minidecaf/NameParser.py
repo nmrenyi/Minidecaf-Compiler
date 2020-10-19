@@ -16,9 +16,9 @@ class NameParser(MiniDecafVisitor):
         self.currentScopeInfo = None
         self.funcNameManager = FuncInfo()
 
-    def defVar(self, ctx, term):
-        self.totalVarCnt += 1 # define a new variable, totalVar += 1
-        variable = self.variableScope[term.getText()] = Variable(term.getText(), -4 * self.totalVarCnt)
+    def defVar(self, ctx, term, numInts=1):
+        self.totalVarCnt += numInts # define a new variable, totalVar += 1
+        variable = self.variableScope[term.getText()] = Variable(term.getText(), -4 * self.totalVarCnt, 4 * numInts)
         self.currentScopeInfo.bind(term, variable)
 
     def useVar(self, ctx, term):
@@ -35,6 +35,19 @@ class NameParser(MiniDecafVisitor):
         self.totalVarCnt = self.scopeVarCnt[-1] # recover now totalVarCnt to ancestorVarCnt
         self.variableScope.pop() # pop out current block scope
         self.scopeVarCnt.pop() # pop out the ancestor var cnt pushed in enterScope()
+    
+    
+    def declNElems(self, ctx:MiniDecafParser.DeclarationContext):
+        def prod(l):
+            s = 1
+            for i in l:
+                s *= i
+            return s
+        res = prod([int(x.getText()) for x in ctx.Integer()])
+        MAX_INT = 2 ** 31 - 1
+        if res <= 0 or res >= MAX_INT:
+            raise Exception(ctx, "array size <= 0 or too large")
+        return res
 
     def visitCompound(self, ctx:MiniDecafParser.CompoundContext):
         '''
@@ -63,7 +76,7 @@ class NameParser(MiniDecafVisitor):
             var = ctx.Ident().getText()
             if var in self.variableScope.currentScopeDict():
                 raise Exception(f"redefinition of {var}") # redefinition of vars
-        self.defVar(ctx, ctx.Ident())
+        self.defVar(ctx, ctx.Ident(), self.declNElems(ctx))
 
     def visitForDeclStmt(self, ctx:MiniDecafParser.ForDeclStmtContext):
         '''
@@ -150,10 +163,13 @@ class NameParser(MiniDecafVisitor):
         '''
         global variable init value getter
         '''
+        def safeEval(s:str):
+            from ast import literal_eval
+            return literal_eval(s)
         if ctx is None:
             return None
         try:
-            return eval(ctx.getText(), {}, {})
+            return safeEval(ctx.getText(), {}, {})
         except:
             raise Exception("global initializers must be constants")
 
@@ -165,8 +181,8 @@ class NameParser(MiniDecafVisitor):
         init = self.globalInitializer(ctx.expr()) # try to get init value
         if ctx.Ident() is not None:
             varStr = ctx.Ident().getText()
-            var = Variable(varStr, None)
-            globInfo = GlobInfo(var, 4, init)
+            var = Variable(varStr, None, 4 * self.declNElems(ctx))
+            globInfo = GlobInfo(var, 4 * self.declNElems(ctx), init)
             if varStr in self.variableScope.currentScopeDict():
                 prevVar = self.variableScope[varStr]
                 prevGlobInfo = self.funcNameManager.globInfos[prevVar]
@@ -191,7 +207,7 @@ class Variable:
     Offset here is used for positioning variable place in stack
     '''
     _varTable = {}
-    def __init__(self, name:str, offset:int):
+    def __init__(self, name:str, offset:int, size:int=4):
         '''
         name : the name of the variable
         offset: the position offset of the variable  to fp
@@ -204,15 +220,16 @@ class Variable:
         self.id = self._varTable[name] # a(0) and a(1) are different variables in different scopes
         self.name = name
         self.offset = offset
+        self.size = size
 
     def __eq__(self, other):
-        return self.id == other.id and self.name == other.name and self.offset == other.offset
+        return self.id == other.id and self.name == other.name and self.offset == other.offset and self.size == other.size
     def __str__(self):
         return f"{self.name}({self.id})"
     def __repr__(self):
         return self.__str__()
     def __hash__(self):
-        return hash((self.name, self.id, self.offset))
+        return hash((self.name, self.id, self.offset, self.size))
 
 class NameManager:
     '''
@@ -227,7 +244,7 @@ class NameManager:
         '''
         create mapping from term to variable
         '''
-        # print('bind', term, term.__repr__())
+        print('bind', term, term.__repr__())
         self.term2Var[term] = var
 
     def __getitem__(self, term:antlr4.tree.Tree.TerminalNodeImpl):
@@ -347,7 +364,6 @@ class FuncInfo:
 
     def __getitem__(self, ctx):
         return self.term2Var[ctx]
-
 
 class GlobInfo:
     '''

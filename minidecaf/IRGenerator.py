@@ -103,14 +103,21 @@ class IRGenerator(MiniDecafVisitor):
     def visitExpr(self, ctx:MiniDecafParser.ExprContext):
         self.visitChildren(ctx)
 
+    # def visitDeclaration(self, ctx:MiniDecafParser.DeclarationContext):
+    #     if ctx.Ident() is not None:
+    #         var = ctx.Ident().getText()
+    #         if ctx.expr() is not None:
+    #             ctx.expr().accept(self) # get expression value
+    #         else:
+    #             self._container.add(IRStr.Const(0)) # default value is zero
+
     def visitDeclaration(self, ctx:MiniDecafParser.DeclarationContext):
-        if ctx.Ident() is not None:
-            var = ctx.Ident().getText()
-            if ctx.expr() is not None:
-                ctx.expr().accept(self) # get expression value
-            else:
-                self._container.add(IRStr.Const(0)) # default value is zero
-    
+        var = self.nameManager[ctx.Ident()]
+        if ctx.expr() is not None:
+            ctx.expr().accept(self)
+        else:
+            self._container.addList([Const(0)] * (var.size//4))
+
     def visitCompound(self, ctx:MiniDecafParser.CompoundContext):
         '''
         visit block here
