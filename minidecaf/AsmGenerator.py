@@ -28,9 +28,9 @@ class AsmGenerator:
         self.check_conflict(ir.globs, ir.funcs, ir.funcDecl)
         for glob in ir.globs:
             if glob.init is None:
-                self.writer.writeList([AsmDirective(f".comm {glob.var.name},{glob.size},4")])
+                self.writer.write_list([AsmDirective(f".comm {glob.var.name},{glob.size},4")])
             else:
-                self.writer.writeList([
+                self.writer.write_list([
                     AsmDirective(".data"),
                     AsmDirective(f".globl {glob.var.name}"),
                     AsmDirective(f".align 4"),
@@ -49,22 +49,22 @@ class AsmGenerator:
         # self.generateEpilogue("main")
 
     def generate_header(self, func_name: str, param_info):
-        self.writer.writeList([
+        self.writer.write_list([
                                   AsmDirective(".text"),
                                   AsmDirective(f".globl {func_name}"),
                                   AsmLabel(f'{func_name}')] +
-                              AsmInstructionList(push_reg('ra')).__str__().split('\n') +
-                              AsmInstructionList(push_reg('fp')).__str__().split('\n') +
-                              [AsmInstruction('mv fp, sp')])
+                               AsmInstructionList(push_reg('ra')).__str__().split('\n') +
+                               AsmInstructionList(push_reg('fp')).__str__().split('\n') +
+                               [AsmInstruction('mv fp, sp')])
 
         for i in range(param_info.paramNum):
             fr, to = 4 * (i + 2), - 8 * (i + 1)
-            self.writer.writeList([
+            self.writer.write_list([
                                       AsmInstruction(f"lw t1, {fr}(fp)")] +
-                                  AsmInstructionList(push_reg('t1')).__str__().split('\n'))
+                                   AsmInstructionList(push_reg('t1')).__str__().split('\n'))
 
     def generate_epilogue(self, func: str):
-        self.writer.writeList(
+        self.writer.write_list(
             AsmInstructionList(push_int(0)).__str__().split('\n') +  # push 0 for no return status, default return 0
             [
                 AsmLabel(f"{func}_exit"),
@@ -77,11 +77,11 @@ class AsmGenerator:
 
     def generate_from_ir_list(self, ir_list):
         command_list = [AsmInstructionList(ir.genAsm()) for ir in ir_list]
-        self.writer.writeList(command_list)
+        self.writer.write_list(command_list)
 
     def generate_from_ir(self, ir_container: IRContainer):
         command_list = [AsmInstructionList(ir.genAsm()) for ir in ir_container.ir_str_list]
-        self.writer.writeList(command_list)
+        self.writer.write_list(command_list)
 
     def generate_return(self):
         self.writer.write(AsmInstruction("jr ra"))
