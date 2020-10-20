@@ -46,9 +46,9 @@ class IRContainer:
 
 
 class IRFunc:
-    '''
+    """
     IR Function Container
-    '''
+    """
 
     def __init__(self, name: str, param_info: ParamInfo, instructions: [BaseIRStr]):
         self.name = name
