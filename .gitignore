@@ -5,3 +5,5 @@ generated
 .~step*
 *.out
 *.exe
+.idea
+venv
