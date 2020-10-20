@@ -40,7 +40,7 @@ class AsmGenerator:
         for func in ir.funcs:
             self.curFunc = func.name
             self.generateHeader(f"{func.name}", func.paramInfo)
-            self.generateFromIRList(func.instrs)
+            self.generateFromIRList(func.instructions)
             self.generateEpilogue(f"{func.name}")
 
         # self.generateHeader('main')

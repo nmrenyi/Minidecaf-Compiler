@@ -2,13 +2,15 @@ import minidecaf.IRStr
 from minidecaf.NameParser import ParamInfo
 from minidecaf.IRStr import BaseIRStr
 
+
 class IRContainer:
-    '''
+    """
     A List Containing IR string, with add method
     __str__ method returns the string representation of IR
-    '''
+    """
+
     def __init__(self):
-        self.curInstrs = []
+        self.current_instructions = []
         self.curName = None
         self.curParamInfo = None
         self.funcs = []
@@ -16,36 +18,39 @@ class IRContainer:
         self.funcDecl = []
 
     def __str__(self):
-        return "main:\n\t" + '\n\t'.join(map(str, self.curInstrs))
+        return "main:\n\t" + '\n\t'.join(map(str, self.current_instructions))
 
-    def add(self, ir:minidecaf.IRStr.BaseIRStr):
-        self.curInstrs.append(ir)
-    def addFuncDecl(self, decl:str):
+    def add(self, ir: minidecaf.IRStr.BaseIRStr):
+        self.current_instructions.append(ir)
+
+    def add_func_decl(self, decl: str):
         self.funcDecl.append(decl)
 
-    def addList(self, irList):
-        self.curInstrs.extend(irList)
+    def add_list(self, ir_list):
+        self.current_instructions.extend(ir_list)
 
-    def addGlobal(self, globalInfo):
-        assert globalInfo.var.offset is None
-        self.globs.append(globalInfo)
+    def add_global(self, global_info):
+        assert global_info.var.offset is None
+        self.globs.append(global_info)
 
-    def enterFunction(self, name:str, paramInfo):
+    def enter_function(self, name: str, param_info):
         self.curName = name
-        self.curParamInfo = paramInfo
-        self.curInstrs = []
+        self.curParamInfo = param_info
+        self.current_instructions = []
 
-    def exitFunction(self):
-        self.funcs.append(IRFunc(self.curName, self.curParamInfo, self.curInstrs))
+    def exit_function(self):
+        self.funcs.append(IRFunc(self.curName, self.curParamInfo, self.current_instructions))
 
-    def getIR(self):
+    def get_ir(self):
         return "main:\n\t" + '\n\t'.join(map(str, self.funcs))
+
 
 class IRFunc:
     '''
     IR Function Container
     '''
-    def __init__(self, name:str, paramInfo:ParamInfo, instrs:[BaseIRStr]):
+
+    def __init__(self, name: str, param_info: ParamInfo, instructions: [BaseIRStr]):
         self.name = name
-        self.paramInfo = paramInfo
-        self.instrs = instrs
+        self.paramInfo = param_info
+        self.instructions = instructions

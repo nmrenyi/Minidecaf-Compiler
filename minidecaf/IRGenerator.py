@@ -73,7 +73,7 @@ class IRGenerator(MiniDecafVisitor):
 
     def visitForDeclStmt(self, ctx:MiniDecafParser.ForDeclStmtContext):
         self.loop("for", ctx.init, ctx.ctrl, ctx.stmt(), ctx.post)
-        self._container.addList([IRStr.Pop()] * self._curFuncNameInfo.blockSlots[ctx])
+        self._container.add_list([IRStr.Pop()] * self._curFuncNameInfo.blockSlots[ctx])
 
     def visitForStmt(self, ctx:MiniDecafParser.ForStmtContext):
         self.loop("for", ctx.init, ctx.ctrl, ctx.stmt(), ctx.post)
@@ -109,7 +109,7 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.expr() is not None:
             ctx.expr().accept(self)
         else:
-            self._container.addList([Const(0)] * (var.size//4))
+            self._container.add_list([Const(0)] * (var.size // 4))
             
     def visitDeclExternalDecl(self, ctx:MiniDecafParser.DeclExternalDeclContext):
         pass
@@ -121,7 +121,7 @@ class IRGenerator(MiniDecafVisitor):
         pop the variables defined in the block
         '''
         self.visitChildren(ctx)
-        self._container.addList([IRStr.Pop()] * self._curFuncNameInfo.blockSlots[ctx])
+        self._container.add_list([IRStr.Pop()] * self._curFuncNameInfo.blockSlots[ctx])
 
     def _computeAddr(self, lvalue:Unary):
         if isinstance(lvalue, MiniDecafParser.TUnaryContext):
@@ -151,7 +151,7 @@ class IRGenerator(MiniDecafVisitor):
         if ctx.el is not None:
             self._container.add(IRStr.Branch("beqz", elseLabel))
             ctx.th.accept(self)
-            self._container.addList([IRStr.Branch("br", endLabel), IRStr.Label(elseLabel)])
+            self._container.add_list([IRStr.Branch("br", endLabel), IRStr.Label(elseLabel)])
             ctx.el.accept(self)
             self._container.add(IRStr.Label(endLabel))
         else: # no else statement here
@@ -168,7 +168,7 @@ class IRGenerator(MiniDecafVisitor):
         elseLabel = self.labelManager.newLabel("cond_else")
         self._container.add(IRStr.Branch("beqz", elseLabel)) # if false, go to else
         ctx.expr().accept(self) # if true, do expr
-        self._container.addList([IRStr.Branch("br", exitLabel), IRStr.Label(elseLabel)])
+        self._container.add_list([IRStr.Branch("br", exitLabel), IRStr.Label(elseLabel)])
         ctx.conditional().accept(self)
         self._container.add(IRStr.Label(exitLabel))
 
@@ -246,22 +246,22 @@ class IRGenerator(MiniDecafVisitor):
             # nParams = len(self.typeInfo.funcs[func].paramTy)
             paramInfo = self.nameManager.paramInfos[func]
 
-            self._container.enterFunction(func, paramInfo)
+            self._container.enter_function(func, paramInfo)
             ctx.compound().accept(self)
-            self._container.exitFunction()
+            self._container.exit_function()
 
     def visitMainFunc(self, ctx:MiniDecafParser.MainFuncContext):
         func = 'main'
         self._curFuncNameInfo = self.nameManager.nameManager[func]
         paramInfo = self.nameManager.paramInfos[func]
-        self._container.enterFunction(func, paramInfo)
+        self._container.enter_function(func, paramInfo)
         ctx.compound().accept(self)
-        self._container.exitFunction()
+        self._container.exit_function()
 
     def visitFuncDecl(self, ctx:MiniDecafParser.FuncDeclContext):
         # self.visitChildren(ctx)
         if ctx.Ident() is not None:
-            self._container.addFuncDecl(ctx.Ident().getText())
+            self._container.add_func_decl(ctx.Ident().getText())
 
     def visitPostfixCall(self, ctx:MiniDecafParser.PostfixContext):
         args = ctx.argList().expr()
@@ -278,7 +278,7 @@ class IRGenerator(MiniDecafVisitor):
 
     def visitProg(self, ctx:MiniDecafParser.ProgContext):
         for globInfo in self.nameManager.globInfos.values():
-            self._container.addGlobal(globInfo)
+            self._container.add_global(globInfo)
         self.visitChildren(ctx)
     def _addExpr(self, ctx, op, lhs, rhs):
         if isinstance(self.typeInfo[lhs], PtrType):
@@ -286,30 +286,30 @@ class IRGenerator(MiniDecafVisitor):
             if isinstance(self.typeInfo[rhs], PtrType): # ptr - ptr
                 lhs.accept(self)
                 rhs.accept(self)
-                self._container.addList([Binary(op)])
-                self._container.addList([Const(sz), Binary('/')])
+                self._container.add_list([Binary(op)])
+                self._container.add_list([Const(sz), Binary('/')])
             else: # ptr +- int
                 lhs.accept(self)
                 rhs.accept(self)
-                self._container.addList([Const(sz), Binary('*')])
-                self._container.addList([Binary(op)])
+                self._container.add_list([Const(sz), Binary('*')])
+                self._container.add_list([Binary(op)])
         else:
             sz = self.typeInfo[rhs].sizeof()
             if isinstance(self.typeInfo[rhs], PtrType): # int +- ptr
                 lhs.accept(self)
-                self._container.addList([Const(sz), Binary('*')])
+                self._container.add_list([Const(sz), Binary('*')])
                 rhs.accept(self)
-                self._container.addList([Binary(op)])
+                self._container.add_list([Binary(op)])
             else: # int +- int
                 self.visitChildren(ctx)
-                self._container.addList([Binary(op)])
+                self._container.add_list([Binary(op)])
 
 
     def emitLoc(self, lvalue:MiniDecafParser.ExprContext):
         loc = self.typeInfo.lvalueLoc(lvalue)
         for locStep in loc:
             if isinstance(locStep, BaseIRStr):
-                self._container.addList([locStep])
+                self._container.add_list([locStep])
             else:
                 locStep.accept(self)
 
@@ -317,9 +317,9 @@ class IRGenerator(MiniDecafVisitor):
         fixupMult = self.typeInfo[ctx.postfix()].base.sizeof()
         ctx.postfix().accept(self)
         ctx.expr().accept(self)
-        self._container.addList([Const(fixupMult), Binary('*'), Binary('+')])
+        self._container.add_list([Const(fixupMult), Binary('*'), Binary('+')])
         if not isinstance(self.typeInfo[ctx], ArrayType):
-            self._container.addList([IRStr.Load()])
+            self._container.add_list([IRStr.Load()])
 
 
 class LabelManager:
