@@ -76,11 +76,11 @@ class AsmGenerator:
             ])
 
     def generate_from_ir_list(self, ir_list):
-        command_list = [AsmInstructionList(ir.genAsm()) for ir in ir_list]
+        command_list = [AsmInstructionList(ir.gen_asm()) for ir in ir_list]
         self.writer.write_list(command_list)
 
     def generate_from_ir(self, ir_container: IRContainer):
-        command_list = [AsmInstructionList(ir.genAsm()) for ir in ir_container.ir_str_list]
+        command_list = [AsmInstructionList(ir.gen_asm()) for ir in ir_container.ir_str_list]
         self.writer.write_list(command_list)
 
     def generate_return(self):
