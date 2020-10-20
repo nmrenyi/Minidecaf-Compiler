@@ -16,7 +16,7 @@ from .generated.MiniDecafLexer import MiniDecafLexer
 from .generated.MiniDecafParser import MiniDecafParser
 
 
-def parse_args(argv):
+def parse_args():
     parser = argparse.ArgumentParser(description="MiniDecaf compiler by RenYi 2018011423")
     parser.add_argument("infile", type=str,
                         help="the input C file")
@@ -39,9 +39,9 @@ def my_lexer(input_stream):
     return token_stream
 
 
-def gen_ir(tree, nameManager, typeInfo):
+def gen_ir(tree, name_manager, type_info):
     ir_container = IRContainer()
-    IRGenerator(ir_container, nameManager, typeInfo).visit(tree)
+    IRGenerator(ir_container, name_manager, type_info).visit(tree)
     return ir_container
 
 
@@ -49,8 +49,8 @@ def gen_asm(ir: IRContainer, output_file):
     if output_file is None:  # >out.S as command line instruction
         asm_writer = AsmWriter(sys.stdout)
     else:  # out.S as command line instruction
-        with open(output_file, 'w') as fout:
-            asm_writer = AsmWriter(fout)
+        with open(output_file, 'w') as out_file:
+            asm_writer = AsmWriter(out_file)
 
     asm_generator = AsmGenerator(asm_writer)
     asm_generator.generate(ir)
@@ -70,7 +70,7 @@ def check_type(tree, name_info):
 
 
 def main():
-    args = parse_args(sys.argv)
+    args = parse_args()
     input_stream = antlr4.FileStream(args.infile)
     token_stream = my_lexer(input_stream)
     tree = my_parser(token_stream)
