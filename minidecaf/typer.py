@@ -26,6 +26,10 @@ class TypeInfo:
 
 
 class FuncTypeInfo:
+    """
+    the function type manager
+    stores the function return value type and the parameter types
+    """
     def __init__(self, retTy: Type, paramTy: list):
         self.retTy = retTy
         self.paramTy = paramTy
@@ -39,11 +43,16 @@ class FuncTypeInfo:
             if self.paramTy == argTy:
                 return self.retTy
             return f"bad argument types"
-
         return callRule
 
 
-def SaveType(f):
+def save_type(f):
+    """
+    decorator mode
+    note down the type information in a dict
+    :param f:
+    :return:
+    """
     def g(self, ctx):
         ty = f(self, ctx)
         self.typeInfo.term2type[ctx] = ty
@@ -71,7 +80,8 @@ class Typer(MiniDecafVisitor):
         self.locator = Locator(self.nameInfo, self.typeInfo)
 
     def visitChildren(self, ctx):
-        ty = MiniDecafVisitor.visitChildren(self, ctx)
+        ty = MiniDecafVisitor.visitChildren(self, ctx) # return the type object in types.py (visitors has been
+        # reimplemented in this class)
         self.typeInfo.term2type[ctx] = ty
         return ty
 
@@ -79,6 +89,10 @@ class Typer(MiniDecafVisitor):
         return self.nameInfo[term]
 
     def _declTyp(self, ctx: MiniDecafParser.DeclarationContext):
+        """
+        :param ctx:
+        :return: corresponding type to the declaration
+        """
         base = ctx.ty().accept(self)
         dims = [int(x.getText()) for x in reversed(ctx.Integer())]
         if len(dims) == 0:
@@ -107,6 +121,13 @@ class Typer(MiniDecafVisitor):
         self.typeInfo.setLvalueLoc(ctx, loc)
 
     def checkUnary(self, ctx, op: str, ty: Type):
+        """
+        return the op's corresponding rule
+        :param ctx:
+        :param op:
+        :param lhs: left hand side type
+        :param rhs: right hand side type
+        """
         rule = expandIterableKey([
             (['-', '!', '~'], intUnaopRule),
             (['&'], addrofRule),
@@ -115,6 +136,14 @@ class Typer(MiniDecafVisitor):
         return rule(ctx, ty)
 
     def checkBinary(self, ctx, op: str, lhs: Type, rhs: Type):
+        """
+        return the op's corresponding rule
+        :param ctx:
+        :param op:
+        :param lhs: left hand side type
+        :param rhs: right hand side type
+        :return:
+        """
         rule = expandIterableKey([
             (['*', '/', '%'] + ["&&", "||"], intBinopRule),
             (["==", "!="], eqRule),
@@ -125,12 +154,12 @@ class Typer(MiniDecafVisitor):
         ])[op]
         return rule(ctx, lhs, rhs)
 
-    @SaveType
+    @save_type
     def visitCCast(self, ctx: MiniDecafParser.CCastContext):
         ctx.cast().accept(self)
         return ctx.ty().accept(self)
 
-    @SaveType
+    @save_type
     def visitCUnary(self, ctx: MiniDecafParser.CUnaryContext):
         res = self.checkUnary(ctx.unaryOp(), ctx.unaryOp().getText(),
                               ctx.cast().accept(self))
@@ -138,72 +167,72 @@ class Typer(MiniDecafVisitor):
             self.locate(ctx.cast())
         return res
 
-    @SaveType
+    @save_type
     def visitAtomParen(self, ctx: MiniDecafParser.AtomParenContext):
         return ctx.expr().accept(self)
 
-    @SaveType
+    @save_type
     def visitCAdd(self, ctx: MiniDecafParser.CAddContext):
         return self.checkBinary(ctx.addOp(), ctx.addOp().getText(),
                                 ctx.additive().accept(self), ctx.multiplicative().accept(self))
 
-    @SaveType
+    @save_type
     def visitCMul(self, ctx: MiniDecafParser.CMulContext):
         return self.checkBinary(ctx.mulOp(), ctx.mulOp().getText(),
                                 ctx.multiplicative().accept(self), ctx.cast().accept(self))
 
-    @SaveType
+    @save_type
     def visitCRel(self, ctx: MiniDecafParser.CRelContext):
         return self.checkBinary(ctx.relOp(), ctx.relOp().getText(),
                                 ctx.relational().accept(self), ctx.additive().accept(self))
 
-    @SaveType
+    @save_type
     def visitCEq(self, ctx: MiniDecafParser.CEqContext):
         return self.checkBinary(ctx.eqOp(), ctx.eqOp().getText(),
                                 ctx.equality().accept(self), ctx.relational().accept(self))
 
-    @SaveType
+    @save_type
     def visitCLand(self, ctx: MiniDecafParser.CLandContext):
         return self.checkBinary(ctx, "&&",
                                 ctx.logicalAnd().accept(self), ctx.equality().accept(self))
 
-    @SaveType
+    @save_type
     def visitCLor(self, ctx: MiniDecafParser.CLorContext):
         return self.checkBinary(ctx, "||",
                                 ctx.logicalOr().accept(self), ctx.logicalAnd().accept(self))
 
-    @SaveType
+    @save_type
     def visitWithCond(self, ctx: MiniDecafParser.WithCondContext):
         return condRule(ctx, ctx.logicalOr().accept(self),
                         ctx.expr().accept(self), ctx.conditional().accept(self))
 
-    @SaveType
+    @save_type
     def visitWithAsgn(self, ctx: MiniDecafParser.WithAsgnContext):
         res = self.checkBinary(ctx.asgnOp(), ctx.asgnOp().getText(),
                                ctx.unary().accept(self), ctx.assignment().accept(self))
         self.locate(ctx.unary())
         return res
 
-    @SaveType
+    @save_type
     def visitPostfixCall(self, ctx: MiniDecafParser.PostfixCallContext):
         argTy = self._argTy(ctx.argList())
         func = ctx.Ident().getText()
         rule = self.typeInfo.funcs[func].call()
         return rule(ctx, argTy)
 
-    @SaveType
+    @save_type
     def visitPostfixArray(self, ctx: MiniDecafParser.PostfixArrayContext):
         return arrayRule(ctx,
                          ctx.postfix().accept(self), ctx.expr().accept(self))
 
-    @SaveType
+    @save_type
     def visitAtomInteger(self, ctx: MiniDecafParser.AtomIntegerContext):
         if literal_eval(ctx.getText()) == 0:
             return ZeroType()
         else:
             return IntType()
 
-    @SaveType
+    @save_type
     def visitAtomIdent(self, ctx: MiniDecafParser.AtomIdentContext):
         var = self._var(ctx.Ident())
         return self.var2type[var]
