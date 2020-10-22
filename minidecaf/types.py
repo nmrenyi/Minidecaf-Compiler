@@ -1,5 +1,6 @@
 import functools
 
+
 class Type:
     def __repr__(self):
         return self.__str__()
@@ -34,7 +35,7 @@ class IntType(Type):
 
 
 class PtrType(Type):
-    def __init__(self, base:Type):
+    def __init__(self, base: Type):
         self.base = base
 
     def __str__(self):
@@ -50,7 +51,7 @@ class PtrType(Type):
 
 
 class ArrayType(Type):
-    def __init__(self, base:Type, len:int):
+    def __init__(self, base: Type, len: int):
         self.base = base
         self.len = len
 
@@ -62,7 +63,7 @@ class ArrayType(Type):
             return False
         return self.base == other.base and self.len == other.len
 
-    def make(base:Type, dims:list):
+    def make(base: Type, dims: list):
         for len in dims:
             base = ArrayType(base, len)
         return base
@@ -82,11 +83,11 @@ class ZeroType(IntType, PtrType):
         return isinstance(other, IntType) or isinstance(other, PtrType)
 
 
-
 # TODO : no need to use decorator (the decorator here is only for error output)
 def TypeRule(f):
     """A type rule is a function: (ctx, *inputTypes) -> {outputType | errStr | None}.
     The ctx parameter is only used for error reporting."""
+
     # @functools.wraps(f)
     def g(ctx, *inTy):
         res = f(ctx, *inTy)
@@ -95,12 +96,14 @@ def TypeRule(f):
         if res is None:
             raise Exception(ctx, f"{f.__name__}: type error")
         return res
-    g.__name__ = f.__name__ # black magic
+
+    g.__name__ = f.__name__  # black magic
     return g
 
 
 def tryEach(name="tryEach", *fs):
     """Combine multiple type rules `fs`, returns result the first that does not fail."""
+
     @TypeRule
     def g(ctx, *inTy):
         errs = []
@@ -110,7 +113,8 @@ def tryEach(name="tryEach", *fs):
             except Exception as e:
                 errs += [e]
         return f"{name}:\n\t" + '\n\t'.join(map(str, errs))
-    g.__name__ = name # black magic
+
+    g.__name__ = name  # black magic
     return g
 
 
@@ -119,17 +123,20 @@ def condRule(ctx, cond, tr, fal):
     if cond == IntType() and tr == fal:
         return tr
 
+
 @TypeRule
 def intBinopRule(ctx, lhs, rhs):
     if lhs == IntType() and rhs == IntType():
         return IntType()
     return f"integer expected, got {lhs} and {rhs}"
 
+
 @TypeRule
 def intUnaopRule(ctx, ty):
     if ty == IntType():
         return IntType()
     return f"integer expected, got {ty}"
+
 
 @TypeRule
 def ptrArithRule(ctx, lhs, rhs):
@@ -139,11 +146,13 @@ def ptrArithRule(ctx, lhs, rhs):
         return lhs
     return f"pointer and integer, got {lhs} and {rhs}"
 
+
 @TypeRule
 def ptrDiffRule(ctx, lhs, rhs):
     if lhs == rhs and isinstance(rhs, PtrType):
         return IntType()
     return f"two pointers of the same type, got {lhs} and {rhs}"
+
 
 @TypeRule
 def derefRule(ctx, ty):
@@ -151,11 +160,13 @@ def derefRule(ctx, ty):
         return ty.base
     return f"pointer expected, got {ty}"
 
+
 @TypeRule
 def addrofRule(ctx, ty):
     if isinstance(ty, ArrayType):
         return "cannot take address of array type"
     return PtrType(ty)
+
 
 @TypeRule
 def eqRule(ctx, lhs, rhs):
@@ -165,6 +176,7 @@ def eqRule(ctx, lhs, rhs):
         return f"expected integer or pointer types, found {lhs}"
     return IntType()
 
+
 @TypeRule
 def relRule(ctx, lhs, rhs):
     if lhs != IntType():
@@ -172,6 +184,7 @@ def relRule(ctx, lhs, rhs):
     if rhs != IntType():
         return f"int expected as relop rhs, found {rhs}"
     return IntType()
+
 
 @TypeRule
 def asgnRule(ctx, lhs, rhs):
@@ -181,11 +194,13 @@ def asgnRule(ctx, lhs, rhs):
         return f"cannot assign to array type {lhs}"
     return lhs
 
+
 @TypeRule
 def retRule(ctx, funcRetTy, ty):
     if funcRetTy != ty:
         return f"return {funcRetTy} expected, {ty} found"
     return VoidType()
+
 
 @TypeRule
 def stmtCondRule(ctx, ty):

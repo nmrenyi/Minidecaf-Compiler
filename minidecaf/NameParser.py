@@ -7,19 +7,18 @@ from .generated.MiniDecafVisitor import MiniDecafVisitor
 
 
 class NameParser(MiniDecafVisitor):
-    '''
+    """
     Name resolution process
-    '''
+    """
 
     def __init__(self):
         self.variableScope = StackedScopeManager()  # mapping from str -> Variable
         self.scopeVarCnt = []  # number of variables in each block (accumulated count)
         self.totalVarCnt = 0  # totally defined variable count
-        # self.nameManager = NameManager()
         self.currentScopeInfo = None
-        self.funcNameManager = FuncInfo()
+        self.funcNameManager = FuncInfo() # the value to be returned from NameParse period
 
-    def defVar(self, ctx, term, numInts=1):
+    def def_var(self, ctx, term, numInts=1):
         self.totalVarCnt += numInts  # define a new variable, totalVar += 1
         variable = self.variableScope[term.getText()] = Variable(term.getText(), -4 * self.totalVarCnt, 4 * numInts)
         self.currentScopeInfo.bind(term, variable)
@@ -54,9 +53,9 @@ class NameParser(MiniDecafVisitor):
         return res
 
     def visitCompound(self, ctx: MiniDecafParser.CompoundContext):
-        '''
+        """
         Visiting a compound structure
-        '''
+        """
         self.enterScope(ctx)
         self.visitChildren(ctx)
         self.exitScope(ctx)
@@ -66,13 +65,13 @@ class NameParser(MiniDecafVisitor):
         self.funcNameManager.freeze()
 
     def visitDeclaration(self, ctx: MiniDecafParser.DeclarationContext):
-        '''
+        """
         in Minidecaf.g4
 
         declaration
         : ty Ident ('=' expr)? ';'
         ;
-        '''
+        """
 
         if ctx.expr() is not None:
             ctx.expr().accept(self)
@@ -80,44 +79,27 @@ class NameParser(MiniDecafVisitor):
             var = ctx.Ident().getText()
             if var in self.variableScope.currentScopeDict():
                 raise Exception(f"redefinition of {var}")  # redefinition of vars
-        self.defVar(ctx, ctx.Ident(), self.declNElems(ctx))
+        self.def_var(ctx, ctx.Ident(), self.declNElems(ctx))
 
     def visitForDeclStmt(self, ctx: MiniDecafParser.ForDeclStmtContext):
-        '''
+        """
         process for with declaration
-        '''
+        """
         self.enterScope(ctx)
         self.visitChildren(ctx)
         self.exitScope(ctx)
 
-    # def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
-    #     '''
-    #     in Minidecaf.g4
-
-    #     assignment
-    #     : conditional # noAsgn
-    #     | Ident '=' assignment # withAsgn
-    #     ;
-
-    #     '''
-    #     ctx.assignment().accept(self)  # process the following assignment first! DO NOT LEAVE OUT THIS LINE
-    #     if ctx.Ident() is not None:
-    #         var = ctx.Ident().getText()
-    #         if var not in self.variableScope:
-    #             raise Exception(f"undefined reference to {var}")
-    #     self.useVar(ctx, ctx.Ident())
-
     def visitAtomIdent(self, ctx: MiniDecafParser.AtomIdentContext):
-        '''
+        """
         in Minidecaf.g4
-        
+
         atom
             : Integer # atomInteger
             | '(' expr ')' # atomParen
             | Ident # atomIdent
             ;
 
-        '''
+        """
         if ctx.Ident() is not None:
             var = ctx.Ident().getText()
             if var not in self.variableScope:
@@ -166,9 +148,9 @@ class NameParser(MiniDecafVisitor):
         return list(map(f, ctx.declaration()))
 
     def globalInitializer(self, ctx: MiniDecafParser.ExprContext):
-        '''
+        """
         global variable init value getter
-        '''
+        """
 
         def safeEval(s: str):
             from ast import literal_eval
@@ -182,9 +164,9 @@ class NameParser(MiniDecafVisitor):
             raise Exception("global initializers must be constants")
 
     def visitDeclExternalDecl(self, ctx: MiniDecafParser.DeclExternalDeclContext):
-        '''
+        """
         global variable declarations
-        '''
+        """
         ctx = ctx.declaration()
         init = self.globalInitializer(ctx.expr())  # try to get init value
         if ctx.Ident() is not None:
@@ -210,11 +192,11 @@ class NameParser(MiniDecafVisitor):
 
 
 class Variable:
-    '''
+    """
     Referenced to TA's implementation
     Variable with name, id, offset.
     Offset here is used for positioning variable place in stack
-    '''
+    """
     _varTable = {}
 
     def __init__(self, name: str, offset: int, size: int = 4):
@@ -246,10 +228,10 @@ class Variable:
 
 
 class NameManager:
-    '''
+    """
     NameManager
     Referenced to TA's implementation
-    '''
+    """
 
     def __init__(self):
         self.term2Var = {}  # mappping from term -> Variable
@@ -272,17 +254,17 @@ class NameManager:
 
 
 class StackedScopeManager:
-    '''
+    """
     Scope Manager
     Reference to TA's implementation
-    
-    '''
+
+    """
 
     def __init__(self):
-        '''
+        """
         contains 2 list of dict
-        the dict have variable name as key, the variable object as the value        
-        '''
+        the dict have variable name as key, the variable object as the value
+        """
         self.globalScope = [{}]  # global var scope list (accumulative)
         self.currentScope = [{}]  # local var scope list
         self.isFuncList = []
@@ -295,32 +277,32 @@ class StackedScopeManager:
         return '\nglobalScope: ' + str(self.globalScope) + '\n' + 'currentScope:' + str(self.currentScope)
 
     def __getitem__(self, name: str):
-        '''
+        """
         return the Variable object corresponding to the variable name
-        '''
+        """
         return self.globalScope[-1][name]
 
     def __setitem__(self, name: str, value: Variable):
-        '''
+        """
         set the mapping from name to the Variable object
-        '''
+        """
         self.currentScope[-1][name] = self.globalScope[-1][name] = value
 
     def __contains__(self, name: str):
-        '''
+        """
         check if the variable name is in the whole scope
         for undefined reference check
-        '''
+        """
         return name in self.globalScope[-1]
 
     def __len__(self):
         return len(self.globalScope[-1])
 
     def push(self, is_func=False, isMain=False):
-        '''
+        """
         copy the previous global scope element to the new global scope element
         create the empty current scope element
-        '''
+        """
         self.isFuncList.append(is_func)
         self.isMainList.append(isMain)
         if len(self.isFuncList) > 1 and self.isFuncList[-2] and not self.isMainList[-2]:
@@ -334,26 +316,26 @@ class StackedScopeManager:
         # print(self.globalScope)
 
     def pop(self):
-        '''
-        pop out the global scope and current scope in the current block        
-        '''
+        """
+        pop out the global scope and current scope in the current block
+        """
         assert len(self.globalScope) > 1
         self.globalScope.pop()
         self.currentScope.pop()
         self.isFuncList.pop()
 
     def currentScopeDict(self, last=0):
-        '''
+        """
         return current scope vars
         for redefinition check
-        '''
+        """
         return self.currentScope[-1 - last]
 
 
 class ParamInfo:
-    '''
+    """
     parameter list manager
-    '''
+    """
 
     def __init__(self, vars: [Variable]):
         self.vars = vars
@@ -364,10 +346,10 @@ class ParamInfo:
 
 
 class FuncInfo:
-    '''
+    """
     Parser for function and global var
     Ref to TA's implementation
-    '''
+    """
 
     def __init__(self):
         self.nameManager = {}  # str -> NameManager. Initialized by Def.
@@ -390,9 +372,9 @@ class FuncInfo:
 
 
 class GlobInfo:
-    '''
+    """
     global variable info
-    '''
+    """
 
     def __init__(self, var: Variable, size: int, init=None):
         self.var = var
