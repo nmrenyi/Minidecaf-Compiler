@@ -23,12 +23,12 @@ class NameParser(MiniDecafVisitor):
         variable = self.variableScope[term.getText()] = Variable(term.getText(), -4 * self.totalVarCnt, 4 * numInts)
         self.currentScopeInfo.bind(term, variable)
 
-    def useVar(self, ctx, term):
+    def use_var(self, ctx, term):
         if term is not None:
             variable = self.variableScope[term.getText()]
             self.currentScopeInfo.bind(term, variable)
 
-    def enterScope(self, ctx, is_func=False, isMain=False):
+    def enter_scope(self, ctx, is_func=False, isMain=False):
         """
         :param ctx:
         :param is_func:
@@ -38,14 +38,14 @@ class NameParser(MiniDecafVisitor):
         self.variableScope.push(is_func=is_func, isMain=isMain)  # push the ancestor var scope to current
         self.scopeVarCnt.append(self.totalVarCnt)  # update the var cnt till now
 
-    def exitScope(self, ctx, ):
+    def exit_scope(self, ctx, ):
         self.currentScopeInfo.blockSlots[ctx] = self.totalVarCnt - self.scopeVarCnt[
             -1]  # calculate the number of variables in current block (nowTotal - ancestorTotal)
         self.totalVarCnt = self.scopeVarCnt[-1]  # recover now totalVarCnt to ancestorVarCnt
         self.variableScope.pop()  # pop out current block scope
         self.scopeVarCnt.pop()  # pop out the ancestor var cnt pushed in enterScope()
 
-    def declNElems(self, ctx: MiniDecafParser.DeclarationContext):
+    def decl_n_elems(self, ctx: MiniDecafParser.DeclarationContext):
         def prod(l):
             s = 1
             for i in l:
@@ -62,13 +62,13 @@ class NameParser(MiniDecafVisitor):
         """
         Visiting a compound structure
         """
-        self.enterScope(ctx)
+        self.enter_scope(ctx)
         self.visitChildren(ctx)
-        self.exitScope(ctx)
+        self.exit_scope(ctx)
 
     def visitProg(self, ctx: MiniDecafParser.ProgContext):
         self.visitChildren(ctx)
-        self.funcNameManager.freeze()
+        self.funcNameManager.freeze() # collect all the used variables
 
     def visitDeclaration(self, ctx: MiniDecafParser.DeclarationContext):
         """
@@ -85,15 +85,15 @@ class NameParser(MiniDecafVisitor):
             var = ctx.Ident().getText()
             if var in self.variableScope.current_scope_dict():
                 raise Exception(f"redefinition of {var}")  # redefinition of vars
-        self.def_var(ctx, ctx.Ident(), self.declNElems(ctx))
+        self.def_var(ctx, ctx.Ident(), self.decl_n_elems(ctx))
 
     def visitForDeclStmt(self, ctx: MiniDecafParser.ForDeclStmtContext):
         """
         process for with declaration
         """
-        self.enterScope(ctx)
+        self.enter_scope(ctx)
         self.visitChildren(ctx)
-        self.exitScope(ctx)
+        self.exit_scope(ctx)
 
     def visitAtomIdent(self, ctx: MiniDecafParser.AtomIdentContext):
         """
@@ -110,7 +110,7 @@ class NameParser(MiniDecafVisitor):
             var = ctx.Ident().getText()
             if var not in self.variableScope:
                 raise Exception(f"undefined reference to {var}")
-        self.useVar(ctx, ctx.Ident())
+        self.use_var(ctx, ctx.Ident())
 
     def func(self, ctx, type_name="def", is_main=False):
         if is_main:
@@ -122,18 +122,18 @@ class NameParser(MiniDecafVisitor):
             if func in self.funcNameManager.nameManager:  # redefinition of functions is prohibited
                 raise Exception(f"redefinition of function {func}")
         current_scope = self.currentScopeInfo = NameManager()
-        self.enterScope(ctx, is_func=True, isMain=is_main)
+        self.enter_scope(ctx, is_func=True, isMain=is_main)
         paramInfo = ParamInfo(ctx.paramList().accept(self))
         if func in self.funcNameManager.paramInfos: # the function has been declared before
             if not paramInfo.compatible(self.funcNameManager.paramInfos[func]):
                 raise Exception(f"conflicting type for {func}")
         if type_name == "def":
-            self.funcNameManager.enterFunction(func, current_scope, paramInfo)
+            self.funcNameManager.enter_function(func, current_scope, paramInfo)
             ctx.compound().accept(self)
         elif type_name == "decl":
             if func not in self.funcNameManager.nameManager:
                 self.funcNameManager.paramInfos[func] = paramInfo
-        self.exitScope(ctx)
+        self.exit_scope(ctx)
 
     def visitMainFunc(self, ctx: MiniDecafParser.MainFuncContext):
         self.func(ctx, 'def', True)
@@ -153,14 +153,10 @@ class NameParser(MiniDecafVisitor):
 
         return list(map(f, ctx.declaration()))
 
-    def globalInitializer(self, ctx: MiniDecafParser.ExprContext):
+    def global_initializer(self, ctx: MiniDecafParser.ExprContext):
         """
         global variable init value getter
         """
-
-        def safeEval(s: str):
-            from ast import literal_eval
-            return literal_eval(s)
 
         if ctx is None:
             return None
@@ -174,11 +170,11 @@ class NameParser(MiniDecafVisitor):
         global variable declarations
         """
         ctx = ctx.declaration()
-        init = self.globalInitializer(ctx.expr())  # try to get init value
+        init = self.global_initializer(ctx.expr())  # try to get init value, maybe None or Int
         if ctx.Ident() is not None:
             varStr = ctx.Ident().getText()
-            var = Variable(varStr, None, 4 * self.declNElems(ctx))
-            globInfo = GlobInfo(var, 4 * self.declNElems(ctx), init)
+            var = Variable(varStr, None, 4 * self.decl_n_elems(ctx))
+            globInfo = GlobInfo(var, 4 * self.decl_n_elems(ctx), init)
             if varStr in self.variableScope.current_scope_dict():
                 prevVar = self.variableScope[varStr]
                 prevGlobInfo = self.funcNameManager.globInfos[prevVar]
@@ -370,7 +366,7 @@ class FuncInfo:
         self.globs = {}  # str -> GlobInfo
         self.globsTerm2Var = {}  # term -> Var
 
-    def enterFunction(self, func: str, funcNameInfo: NameManager, paramInfo: ParamInfo):
+    def enter_function(self, func: str, funcNameInfo: NameManager, paramInfo: ParamInfo):
         self.nameManager[func] = funcNameInfo
         self.paramInfos[func] = paramInfo
 

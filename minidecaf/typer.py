@@ -1,51 +1,32 @@
-from minidecaf.IRStr import BaseIRStr
-from .generated.MiniDecafVisitor import MiniDecafVisitor
-from .generated.MiniDecafParser import MiniDecafParser
-
-from minidecaf.types import *
-from minidecaf.IRStr import *
 from ast import literal_eval
 
+from minidecaf.IRStr import *
+from minidecaf.types import *
+from .generated.MiniDecafParser import MiniDecafParser
+from .generated.MiniDecafVisitor import MiniDecafVisitor
+
+
 class TypeInfo:
+    """
+    type parse only takes effect on expressions
+    """
     def __init__(self):
-        self.loc = {} # ExprContext -> (IRInstr|ExprContext)+
-        self.funcs = {} # str -> FuncTypeInfo
-        self._t = {} # ExprContext -> Type
+        self.loc = {}  # ExprContext -> (IRInstr|ExprContext)+
+        self.funcs = {}  # str -> FuncTypeInfo
+        self.term2type = {}  # ExprContext -> Type
 
     def lvalueLoc(self, ctx):
         return self.loc[ctx]
 
-    def setLvalueLoc(self, ctx, loc:list):
+    def setLvalueLoc(self, ctx, loc: list):
         self.loc[ctx] = loc
 
-    def __str__(self):
-        res = "Lvalue analysis result: (location of expr at lhs == value of rhs):\n\t"
-        def p(c):
-            return f"{c.start.line},{c.start.column}~{c.stop.line},{c.stop.column}"
-        def g(locStep):
-            if isinstance(locStep, BaseIRStr):
-                return f"{locStep}"
-            else:
-                return f"[{p(locStep)}]"
-        def f(cl):
-            ctx, loc = cl
-            ctxStr = f"{p(ctx)}"
-            locStr = " :: ".join(map(g, loc))
-            return f"{ctxStr:>32} : {locStr}"
-        res += "\n\t".join(map(f, self.loc.items()))
-        res += "\n\nType info for funcs:\n\t"
-        def f(nf):
-            name, funcInfo = nf
-            return f"{name:>32} : ({funcInfo.paramTy}) -> {funcInfo.retTy}"
-        res += "\n\t".join(map(f, self.funcs.items()))
-        return res
-
     def __getitem__(self, ctx):
-        return self._t[ctx]
+        return self.term2type[ctx]
 
 
 class FuncTypeInfo:
-    def __init__(self, retTy:Type, paramTy:list):
+    def __init__(self, retTy: Type, paramTy: list):
         self.retTy = retTy
         self.paramTy = paramTy
 
@@ -54,18 +35,20 @@ class FuncTypeInfo:
 
     def call(self):
         @TypeRule
-        def callRule(ctx, argTy:list):
+        def callRule(ctx, argTy: list):
             if self.paramTy == argTy:
                 return self.retTy
             return f"bad argument types"
+
         return callRule
 
 
 def SaveType(f):
     def g(self, ctx):
         ty = f(self, ctx)
-        self.typeInfo._t[ctx] = ty
+        self.typeInfo.term2type[ctx] = ty
         return ty
+
     return g
 
 
@@ -76,23 +59,26 @@ class Typer(MiniDecafVisitor):
     expression, and also check for incompatibilities like int*+int*. Besides
     type checking, Typer also does lvalue analysis i.e. determine which
     expressions are lvalues and their address.
+
+    Reference to TA's implementation
     """
+
     def __init__(self, nameInfo):
-        self.vartyp = {} # Variable -> Type
-        self.nameInfo = nameInfo
+        self.var2type = {}  # Variable -> Type
+        self.nameInfo = nameInfo # FuncInfo Object
         self.curFunc = None
         self.typeInfo = TypeInfo()
         self.locator = Locator(self.nameInfo, self.typeInfo)
 
     def visitChildren(self, ctx):
         ty = MiniDecafVisitor.visitChildren(self, ctx)
-        self.typeInfo._t[ctx] = ty
+        self.typeInfo.term2type[ctx] = ty
         return ty
 
     def _var(self, term):
         return self.nameInfo[term]
 
-    def _declTyp(self, ctx:MiniDecafParser.DeclarationContext):
+    def _declTyp(self, ctx: MiniDecafParser.DeclarationContext):
         base = ctx.ty().accept(self)
         dims = [int(x.getText()) for x in reversed(ctx.Integer())]
         if len(dims) == 0:
@@ -105,13 +91,13 @@ class Typer(MiniDecafVisitor):
         paramTy = self.paramTy(ctx.paramList())
         return FuncTypeInfo(retTy, paramTy)
 
-    def _argTy(self, ctx:MiniDecafParser.ArgListContext):
+    def _argTy(self, ctx: MiniDecafParser.ArgListContext):
         return list(map(lambda x: x.accept(self), ctx.expr()))
 
-    def visitPtrType(self, ctx:MiniDecafParser.PtrTypeContext):
+    def visitPtrType(self, ctx: MiniDecafParser.PtrTypeContext):
         return PtrType(ctx.ty().accept(self))
 
-    def visitIntType(self, ctx:MiniDecafParser.IntTypeContext):
+    def visitIntType(self, ctx: MiniDecafParser.IntTypeContext):
         return IntType()
 
     def locate(self, ctx):
@@ -120,119 +106,112 @@ class Typer(MiniDecafVisitor):
             raise Exception(ctx, "lvalue expected")
         self.typeInfo.setLvalueLoc(ctx, loc)
 
-    def checkUnary(self, ctx, op:str, ty:Type):
+    def checkUnary(self, ctx, op: str, ty: Type):
         rule = expandIterableKey([
-            (['-', '!', '~'],   intUnaopRule),
-            (['&'],             addrofRule),
-            (['*'],             derefRule),
+            (['-', '!', '~'], intUnaopRule),
+            (['&'], addrofRule),
+            (['*'], derefRule),
         ])[op]
         return rule(ctx, ty)
 
-    def checkBinary(self, ctx, op:str, lhs:Type, rhs:Type):
+    def checkBinary(self, ctx, op: str, lhs: Type, rhs: Type):
         rule = expandIterableKey([
-            (['*', '/', '%'] + ["&&", "||"],    intBinopRule),
-            (["==", "!="],                         eqRule),
-            (["<", "<=", ">", ">="],               relRule),
-            (['='],                         asgnRule),
-            (['+'],                         tryEach('+', intBinopRule, ptrArithRule)),
-            (['-'],                         tryEach('-', intBinopRule, ptrArithRule, ptrDiffRule)),
+            (['*', '/', '%'] + ["&&", "||"], intBinopRule),
+            (["==", "!="], eqRule),
+            (["<", "<=", ">", ">="], relRule),
+            (['='], asgnRule),
+            (['+'], tryEach('+', intBinopRule, ptrArithRule)),
+            (['-'], tryEach('-', intBinopRule, ptrArithRule, ptrDiffRule)),
         ])[op]
         return rule(ctx, lhs, rhs)
 
     @SaveType
-    def visitCCast(self, ctx:MiniDecafParser.CCastContext):
+    def visitCCast(self, ctx: MiniDecafParser.CCastContext):
         ctx.cast().accept(self)
         return ctx.ty().accept(self)
 
     @SaveType
-    def visitCUnary(self, ctx:MiniDecafParser.CUnaryContext):
+    def visitCUnary(self, ctx: MiniDecafParser.CUnaryContext):
         res = self.checkUnary(ctx.unaryOp(), ctx.unaryOp().getText(),
-                ctx.cast().accept(self))
+                              ctx.cast().accept(self))
         if ctx.unaryOp().getText() == '&':
             self.locate(ctx.cast())
         return res
 
     @SaveType
-    def visitAtomParen(self, ctx:MiniDecafParser.AtomParenContext):
+    def visitAtomParen(self, ctx: MiniDecafParser.AtomParenContext):
         return ctx.expr().accept(self)
 
     @SaveType
-    def visitCAdd(self, ctx:MiniDecafParser.CAddContext):
+    def visitCAdd(self, ctx: MiniDecafParser.CAddContext):
         return self.checkBinary(ctx.addOp(), ctx.addOp().getText(),
-                ctx.additive().accept(self), ctx.multiplicative().accept(self))
+                                ctx.additive().accept(self), ctx.multiplicative().accept(self))
 
     @SaveType
-    def visitCMul(self, ctx:MiniDecafParser.CMulContext):
+    def visitCMul(self, ctx: MiniDecafParser.CMulContext):
         return self.checkBinary(ctx.mulOp(), ctx.mulOp().getText(),
-                ctx.multiplicative().accept(self), ctx.cast().accept(self))
+                                ctx.multiplicative().accept(self), ctx.cast().accept(self))
 
     @SaveType
-    def visitCRel(self, ctx:MiniDecafParser.CRelContext):
+    def visitCRel(self, ctx: MiniDecafParser.CRelContext):
         return self.checkBinary(ctx.relOp(), ctx.relOp().getText(),
-                ctx.relational().accept(self), ctx.additive().accept(self))
+                                ctx.relational().accept(self), ctx.additive().accept(self))
 
     @SaveType
-    def visitCEq(self, ctx:MiniDecafParser.CEqContext):
+    def visitCEq(self, ctx: MiniDecafParser.CEqContext):
         return self.checkBinary(ctx.eqOp(), ctx.eqOp().getText(),
-                ctx.equality().accept(self), ctx.relational().accept(self))
+                                ctx.equality().accept(self), ctx.relational().accept(self))
 
     @SaveType
-    def visitCLand(self, ctx:MiniDecafParser.CLandContext):
+    def visitCLand(self, ctx: MiniDecafParser.CLandContext):
         return self.checkBinary(ctx, "&&",
-                ctx.logicalAnd().accept(self), ctx.equality().accept(self))
+                                ctx.logicalAnd().accept(self), ctx.equality().accept(self))
 
     @SaveType
-    def visitCLor(self, ctx:MiniDecafParser.CLorContext):
+    def visitCLor(self, ctx: MiniDecafParser.CLorContext):
         return self.checkBinary(ctx, "||",
-                ctx.logicalOr().accept(self), ctx.logicalAnd().accept(self))
+                                ctx.logicalOr().accept(self), ctx.logicalAnd().accept(self))
 
     @SaveType
-    def visitWithCond(self, ctx:MiniDecafParser.WithCondContext):
+    def visitWithCond(self, ctx: MiniDecafParser.WithCondContext):
         return condRule(ctx, ctx.logicalOr().accept(self),
-                ctx.expr().accept(self), ctx.conditional().accept(self))
+                        ctx.expr().accept(self), ctx.conditional().accept(self))
 
     @SaveType
-    def visitWithAsgn(self, ctx:MiniDecafParser.WithAsgnContext):
+    def visitWithAsgn(self, ctx: MiniDecafParser.WithAsgnContext):
         res = self.checkBinary(ctx.asgnOp(), ctx.asgnOp().getText(),
-                ctx.unary().accept(self), ctx.assignment().accept(self))
+                               ctx.unary().accept(self), ctx.assignment().accept(self))
         self.locate(ctx.unary())
         return res
 
     @SaveType
-    def visitPostfixCall(self, ctx:MiniDecafParser.PostfixCallContext):
+    def visitPostfixCall(self, ctx: MiniDecafParser.PostfixCallContext):
         argTy = self._argTy(ctx.argList())
         func = ctx.Ident().getText()
         rule = self.typeInfo.funcs[func].call()
         return rule(ctx, argTy)
 
-    # @SaveType
-    # def visitAtomCall(self, ctx:MiniDecafParser.AtomCallContext):
-    #     argTy = self._argTy(ctx.argList())
-    #     func = ctx.Ident().getText()
-    #     rule = self.typeInfo.funcs[func].call()
-    #     return rule(ctx, argTy)
-
     @SaveType
-    def visitPostfixArray(self, ctx:MiniDecafParser.PostfixArrayContext):
+    def visitPostfixArray(self, ctx: MiniDecafParser.PostfixArrayContext):
         return arrayRule(ctx,
-                ctx.postfix().accept(self), ctx.expr().accept(self))
+                         ctx.postfix().accept(self), ctx.expr().accept(self))
 
     @SaveType
-    def visitAtomInteger(self, ctx:MiniDecafParser.AtomIntegerContext):
+    def visitAtomInteger(self, ctx: MiniDecafParser.AtomIntegerContext):
         if literal_eval(ctx.getText()) == 0:
             return ZeroType()
         else:
             return IntType()
 
     @SaveType
-    def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
+    def visitAtomIdent(self, ctx: MiniDecafParser.AtomIdentContext):
         var = self._var(ctx.Ident())
-        return self.vartyp[var]
+        return self.var2type[var]
 
-    def visitDeclaration(self, ctx:MiniDecafParser.DeclarationContext):
+    def visitDeclaration(self, ctx: MiniDecafParser.DeclarationContext):
         var = self._var(ctx.Ident())
         ty = self._declTyp(ctx)
-        self.vartyp[var] = ty
+        self.var2type[var] = ty
         if ctx.expr() is not None:
             initTyp = ctx.expr().accept(self)
             asgnRule(ctx, ty, initTyp)
@@ -250,26 +229,26 @@ class Typer(MiniDecafVisitor):
         else:
             self.typeInfo.funcs[func] = funcTypeInfo
 
-    def visitFuncDef(self, ctx:MiniDecafParser.FuncDefContext):
+    def visitFuncDef(self, ctx: MiniDecafParser.FuncDefContext):
         func = ctx.Ident().getText()
         self.curFunc = func
         self.checkFunc(ctx)
         self.visitChildren(ctx)
         self.curFunc = None
 
-    def visitMainFunc(self, ctx:MiniDecafParser.MainFuncContext):
+    def visitMainFunc(self, ctx: MiniDecafParser.MainFuncContext):
         self.curFunc = 'main'
         self.checkFunc(ctx, True)
         self.visitChildren(ctx)
         self.curFunc = None
 
-    def visitFuncDecl(self, ctx:MiniDecafParser.FuncDeclContext):
+    def visitFuncDecl(self, ctx: MiniDecafParser.FuncDeclContext):
         func = ctx.Ident().getText()
         self.curFunc = func
         self.checkFunc(ctx)
         self.curFunc = None
 
-    def paramTy(self, ctx:MiniDecafParser.ParamListContext):
+    def paramTy(self, ctx: MiniDecafParser.ParamListContext):
         res = []
         for decl in ctx.declaration():
             if decl.expr() is not None:
@@ -280,77 +259,81 @@ class Typer(MiniDecafVisitor):
             res += [paramTy]
         return res
 
-    def visitDeclExternalDecl(self, ctx:MiniDecafParser.DeclExternalDeclContext):
+    def visitDeclExternalDecl(self, ctx: MiniDecafParser.DeclExternalDeclContext):
         ctx = ctx.declaration()
         var = self.nameInfo.globs[ctx.Ident().getText()].var
         ty = self._declTyp(ctx)
-        if var in self.vartyp:
-            prevTy = self.vartyp[var]
+        if var in self.var2type:
+            prevTy = self.var2type[var]
             if prevTy != ty:
                 raise Exception(ctx, f"conflicting types for {var.ident}")
         else:
-            self.vartyp[var] = ty
+            self.var2type[var] = ty
         if ctx.expr() is not None:
             initTyp = ctx.expr().accept(self)
             asgnRule(ctx, ty, initTyp)
 
-    def visitReturnStmt(self, ctx:MiniDecafParser.ReturnStmtContext):
+    def visitReturnStmt(self, ctx: MiniDecafParser.ReturnStmtContext):
         funcRetTy = self.typeInfo.funcs[self.curFunc].retTy
         ty = ctx.expr().accept(self)
         retRule(ctx, funcRetTy, ty)
 
-    def visitIfStmt(self, ctx:MiniDecafParser.IfStmtContext):
+    def visitIfStmt(self, ctx: MiniDecafParser.IfStmtContext):
         self.visitChildren(ctx)
-        stmtCondRule(ctx, ctx.expr().accept(self)) # idempotent
+        stmtCondRule(ctx, ctx.expr().accept(self))  # idempotent
 
-    def visitForDeclStmt(self, ctx:MiniDecafParser.ForDeclStmtContext):
-        self.visitChildren(ctx)
-        if ctx.ctrl is not None: stmtCondRule(ctx, ctx.ctrl.accept(self))
-
-    def visitForStmt(self, ctx:MiniDecafParser.ForStmtContext):
+    def visitForDeclStmt(self, ctx: MiniDecafParser.ForDeclStmtContext):
         self.visitChildren(ctx)
         if ctx.ctrl is not None: stmtCondRule(ctx, ctx.ctrl.accept(self))
 
-    def visitWhileStmt(self, ctx:MiniDecafParser.WhileStmtContext):
+    def visitForStmt(self, ctx: MiniDecafParser.ForStmtContext):
+        self.visitChildren(ctx)
+        if ctx.ctrl is not None: stmtCondRule(ctx, ctx.ctrl.accept(self))
+
+    def visitWhileStmt(self, ctx: MiniDecafParser.WhileStmtContext):
         self.visitChildren(ctx)
         stmtCondRule(ctx, ctx.expr().accept(self))
 
-    def visitDoWhileStmt(self, ctx:MiniDecafParser.DoWhileStmtContext):
+    def visitDoWhileStmt(self, ctx: MiniDecafParser.DoWhileStmtContext):
         self.visitChildren(ctx)
         stmtCondRule(ctx, ctx.expr().accept(self))
 
 
 class Locator(MiniDecafVisitor):
-    def __init__(self, nameInfo, typeInfo:TypeInfo):
+    """
+    visitor mode locating
+    """
+    def __init__(self, nameInfo, typeInfo: TypeInfo):
         self.nameInfo = nameInfo
         self.typeInfo = typeInfo
 
-    def locate(self, func:str, ctx):
+    def locate(self, func: str, ctx):
         self.func = func
         res = ctx.accept(self)
         self.func = None
         return res
 
-    def visitAtomIdent(self, ctx:MiniDecafParser.AtomIdentContext):
+    def visitAtomIdent(self, ctx: MiniDecafParser.AtomIdentContext):
         var = self.nameInfo[ctx.Ident()]
         if var.offset is None:
             return [GlobalSymbol(var.name)]
         else:
             return [FrameSlot(var.offset)]
 
-    def visitCUnary(self, ctx:MiniDecafParser.CUnaryContext):
+    def visitCUnary(self, ctx: MiniDecafParser.CUnaryContext):
         op = ctx.unaryOp().getText()
         if op == '*':
             return [ctx.cast()]
 
-    def visitPostfixArray(self, ctx:MiniDecafParser.PostfixArrayContext):
+    def visitPostfixArray(self, ctx: MiniDecafParser.PostfixArrayContext):
         fixupMult = self.typeInfo[ctx.postfix()].base.sizeof()
         return [ctx.postfix(), ctx.expr(), Const(fixupMult), Binary('*'), Binary('+')]
 
-    def visitAtomParen(self, ctx:MiniDecafParser.AtomParenContext):
+    def visitAtomParen(self, ctx: MiniDecafParser.AtomParenContext):
         return ctx.expr().accept(self)
 
-def expandIterableKey(d:list):
+
+def expandIterableKey(d: list):
     d2 = {}
     for (keys, val) in d:
         for key in keys:
