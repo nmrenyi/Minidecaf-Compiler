@@ -29,6 +29,12 @@ class NameParser(MiniDecafVisitor):
             self.currentScopeInfo.bind(term, variable)
 
     def enterScope(self, ctx, is_func=False, isMain=False):
+        """
+        :param ctx:
+        :param is_func:
+        :param isMain:
+        :return:
+        """
         self.variableScope.push(is_func=is_func, isMain=isMain)  # push the ancestor var scope to current
         self.scopeVarCnt.append(self.totalVarCnt)  # update the var cnt till now
 
@@ -77,7 +83,7 @@ class NameParser(MiniDecafVisitor):
             ctx.expr().accept(self)
         if ctx.Ident() is not None:
             var = ctx.Ident().getText()
-            if var in self.variableScope.currentScopeDict():
+            if var in self.variableScope.current_scope_dict():
                 raise Exception(f"redefinition of {var}")  # redefinition of vars
         self.def_var(ctx, ctx.Ident(), self.declNElems(ctx))
 
@@ -108,21 +114,21 @@ class NameParser(MiniDecafVisitor):
 
     def func(self, ctx, type_name="def", is_main=False):
         if is_main:
-            func = 'main'
+            func = 'main' # main func do not have Ident() attribute
         elif ctx.Ident() is not None:
             func = ctx.Ident().getText()
 
         if type_name == "def":
-            if func in self.funcNameManager.nameManager:
+            if func in self.funcNameManager.nameManager:  # redefinition of functions is prohibited
                 raise Exception(f"redefinition of function {func}")
-        currentScope = self.currentScopeInfo = NameManager()
+        current_scope = self.currentScopeInfo = NameManager()
         self.enterScope(ctx, is_func=True, isMain=is_main)
         paramInfo = ParamInfo(ctx.paramList().accept(self))
-        if func in self.funcNameManager.paramInfos:
+        if func in self.funcNameManager.paramInfos: # the function has been declared before
             if not paramInfo.compatible(self.funcNameManager.paramInfos[func]):
                 raise Exception(f"conflicting type for {func}")
         if type_name == "def":
-            self.funcNameManager.enterFunction(func, currentScope, paramInfo)
+            self.funcNameManager.enterFunction(func, current_scope, paramInfo)
             ctx.compound().accept(self)
         elif type_name == "decl":
             if func not in self.funcNameManager.nameManager:
@@ -173,7 +179,7 @@ class NameParser(MiniDecafVisitor):
             varStr = ctx.Ident().getText()
             var = Variable(varStr, None, 4 * self.declNElems(ctx))
             globInfo = GlobInfo(var, 4 * self.declNElems(ctx), init)
-            if varStr in self.variableScope.currentScopeDict():
+            if varStr in self.variableScope.current_scope_dict():
                 prevVar = self.variableScope[varStr]
                 prevGlobInfo = self.funcNameManager.globInfos[prevVar]
                 if not prevGlobInfo.compatible(globInfo):
@@ -200,11 +206,11 @@ class Variable:
     _varTable = {}
 
     def __init__(self, name: str, offset: int, size: int = 4):
-        '''
+        """
         name : the name of the variable
-        offset: the position offset of the variable  to fp
+        offset: the position offset of the variable  to fp (usually negative)
         id: to identify different variable in different scopes with same name
-        '''
+        """
         if name not in self._varTable:
             self._varTable[name] = 0
         else:
@@ -238,16 +244,16 @@ class NameManager:
         self.blockSlots = {}  # mapping CompoundContext/ForDeclStmtContext -> int(cnt of variables in the block)
 
     def bind(self, term: antlr4.tree.Tree.TerminalNodeImpl, var: Variable):
-        '''
+        """
         create mapping from term to variable
-        '''
+        """
         # print('bind', term, term.__repr__())
         self.term2Var[term] = var
 
     def __getitem__(self, term: antlr4.tree.Tree.TerminalNodeImpl):
-        '''
+        """
         return the corresponding variable of the term
-        '''
+        """
         # print('wanna', term, term.__repr__())
         # print('all', self.term2Var)
         return self.term2Var[term]
@@ -267,8 +273,8 @@ class StackedScopeManager:
         """
         self.globalScope = [{}]  # global var scope list (accumulative)
         self.currentScope = [{}]  # local var scope list
-        self.isFuncList = []
-        self.isMainList = []
+        self.isFuncList = []  # the list for if the current scope and previous scope is a function scope
+        self.isMainList = []  # the list for if the current scope and previous scope is a main function scope
 
     def __repr__(self):
         return self.__str__()
@@ -306,14 +312,19 @@ class StackedScopeManager:
         self.isFuncList.append(is_func)
         self.isMainList.append(isMain)
         if len(self.isFuncList) > 1 and self.isFuncList[-2] and not self.isMainList[-2]:
+            """
+            if the previous scope is a function except main function, then the parameter list should be considered in 
+            the current function scope
+            
+            if the previous scope is main function, since main functions do not have arguments in minidecaf, 
+            we shouldn't include the previous variabel scope into current (or the global vars will be considered 
+            as main function scope variables.
+            """
             self.currentScope.append(deepcopy(self.globalScope[-1]))
         else:
             self.currentScope.append({})
 
-        # self.currentScope.append({})
         self.globalScope.append(deepcopy(self.globalScope[-1]))
-        # print(self.currentScope)
-        # print(self.globalScope)
 
     def pop(self):
         """
@@ -324,7 +335,7 @@ class StackedScopeManager:
         self.currentScope.pop()
         self.isFuncList.pop()
 
-    def currentScopeDict(self, last=0):
+    def current_scope_dict(self, last=0):
         """
         return current scope vars
         for redefinition check
@@ -337,9 +348,9 @@ class ParamInfo:
     parameter list manager
     """
 
-    def __init__(self, vars: [Variable]):
-        self.vars = vars
-        self.paramNum = len(vars)
+    def __init__(self, variables: [Variable]):
+        self.vars = variables
+        self.paramNum = len(variables)
 
     def compatible(self, other):
         return self.paramNum == other.paramNum
@@ -355,7 +366,7 @@ class FuncInfo:
         self.nameManager = {}  # str -> NameManager. Initialized by Def.
         self.paramInfos = {}  # str -> ParamInfo. Fixed by Def; can be initialized by Decl.
         self.globInfos = {}  # Variable -> GlobInfo.
-        self.term2Var = {}
+        self.term2Var = {} # term -> Var
         self.globs = {}  # str -> GlobInfo
         self.globsTerm2Var = {}  # term -> Var
 
@@ -364,6 +375,10 @@ class FuncInfo:
         self.paramInfos[func] = paramInfo
 
     def freeze(self):
+        """
+        get all the used function vars into term2Var
+        :return: None
+        """
         for funcNameInfo in self.nameManager.values():
             self.term2Var.update(funcNameInfo.term2Var)
 
