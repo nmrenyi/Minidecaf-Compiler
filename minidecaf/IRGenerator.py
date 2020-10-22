@@ -221,7 +221,6 @@ class IRGenerator(MiniDecafVisitor):
             func = ctx.Ident().getText()
             self._curFuncNameInfo = self.nameManager.nameManager[func]
 
-            # nParams = len(self.typeInfo.funcs[func].paramTy)
             param_info = self.nameManager.paramInfos[func]
 
             self._container.enter_function(func, param_info)
