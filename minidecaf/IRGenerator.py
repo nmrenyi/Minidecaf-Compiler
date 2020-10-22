@@ -29,9 +29,9 @@ class IRGenerator(MiniDecafVisitor):
             self._container.add(IRStr.FrameSlot(var.offset))
 
     def get_position(self, term):
-        '''
+        """
         return the position relative to fp for specific term
-        '''
+        """
         return self._curFuncNameInfo[term].offset
         # return self.nameManager[term].offset
 
@@ -39,9 +39,9 @@ class IRGenerator(MiniDecafVisitor):
         return self._curFuncNameInfo[term].name
 
     def loop(self, name, init, cond, body, post):
-        '''
+        """
         general loop structure
-        '''
+        """
         entry_label = self.labelManager.new_label(f"{name}_entry")
         if post is not None:  # have statement like incrementation
             continue_label = self.labelManager.new_label(f"{name}_continue")
@@ -124,21 +124,8 @@ class IRGenerator(MiniDecafVisitor):
         self.visitChildren(ctx)
         self._container.add_list([IRStr.Pop()] * self._curFuncNameInfo.blockSlots[ctx])
 
-    def _compute_addr(self, lvalue: Unary):
-        if isinstance(lvalue, MiniDecafParser.TUnaryContext):
-            return self._compute_addr(lvalue.postfix())
-        if isinstance(lvalue, MiniDecafParser.PostfixContext):
-            return self._compute_addr(lvalue.atom())
-        if isinstance(lvalue, MiniDecafParser.AtomIdentContext):
-            var = self._var(lvalue.Ident())
-            return self.emit_var(var)
-        elif isinstance(lvalue, MiniDecafParser.AtomParenContext):
-            return self._compute_addr(lvalue.expr())
-        raise Exception(f"{lvalue.getText()} is not a lvalue")
-
     def visitWithAsgn(self, ctx: MiniDecafParser.WithAsgnContext):
         ctx.assignment().accept(self)
-        # self._computeAddr(ctx.unary())
         self.emit_loc(ctx.unary())
         self._container.add(IRStr.Store())
 
@@ -194,21 +181,11 @@ class IRGenerator(MiniDecafVisitor):
                 self.visitChildren(ctx)
                 self._container.add(Unary(op))
 
-    # def visitCUnary(self, ctx:MiniDecafParser.CUnaryContext):
-    #     self.visitChildren(ctx)
-    #     if ctx.unaryOp() is not None:
-    #         self._container.add(IRStr.Unary(ctx.unaryOp().getText()))
-
     def visitAtomInteger(self, ctx: MiniDecafParser.AtomIntegerContext):
         # no children in atomInteger branch, get the Integer DIRECTLY
         if ctx.Integer() is not None:
             v = int(ctx.Integer().getText())
             self._container.add(IRStr.Const(v))
-
-    # def visitCAdd(self, ctx:MiniDecafParser.CAddContext):
-    #     self.visitChildren(ctx)
-    #     if ctx.addOp() is not None:
-    #         self._container.add(IRStr.Binary(ctx.addOp().getText()))
 
     def visitCAdd(self, ctx: MiniDecafParser.CAddContext):
         if ctx.addOp() is not None:
@@ -278,6 +255,11 @@ class IRGenerator(MiniDecafVisitor):
             self._container.add(IRStr.Call(func, self.nameManager.paramInfos[func].paramNum))
 
     def visitProg(self, ctx: MiniDecafParser.ProgContext):
+        """
+        when visiting programs, visit global variables first
+        :param ctx:
+        :return:
+        """
         for globInfo in self.nameManager.globInfos.values():
             self._container.add_global(globInfo)
         self.visitChildren(ctx)
