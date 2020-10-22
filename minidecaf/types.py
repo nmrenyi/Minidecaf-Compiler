@@ -1,6 +1,9 @@
-import functools
+"""
+types information for check type period
 
+the types definition referenced to TA's implementation
 
+"""
 class Type:
     def __repr__(self):
         return self.__str__()
@@ -64,6 +67,11 @@ class ArrayType(Type):
         return self.base == other.base and self.len == other.len
 
     def make(base: Type, dims: list):
+        """
+        generate multi dim arrays
+        :param dims:
+        :return:
+        """
         for len in dims:
             base = ArrayType(base, len)
         return base
@@ -83,10 +91,13 @@ class ZeroType(IntType, PtrType):
         return isinstance(other, IntType) or isinstance(other, PtrType)
 
 
-# TODO : no need to use decorator (the decorator here is only for error output)
-def TypeRule(f):
-    """A type rule is a function: (ctx, *inputTypes) -> {outputType | errStr | None}.
-    The ctx parameter is only used for error reporting."""
+def type_rule(f):
+    """
+    A type rule is a function: (ctx, *inputTypes) -> {outputType | errStr | None}.
+    The ctx parameter is only used for error reporting.
+
+    when the decorated functions returns a str, then the type rule reports an error according to the str
+    """
 
     # @functools.wraps(f)
     def g(ctx, *inTy):
@@ -104,7 +115,7 @@ def TypeRule(f):
 def tryEach(name="tryEach", *fs):
     """Combine multiple type rules `fs`, returns result the first that does not fail."""
 
-    @TypeRule
+    @type_rule
     def g(ctx, *inTy):
         errs = []
         for f in fs:
@@ -118,27 +129,27 @@ def tryEach(name="tryEach", *fs):
     return g
 
 
-@TypeRule
+@type_rule
 def condRule(ctx, cond, tr, fal):
     if cond == IntType() and tr == fal:
         return tr
 
 
-@TypeRule
+@type_rule
 def intBinopRule(ctx, lhs, rhs):
     if lhs == IntType() and rhs == IntType():
         return IntType()
     return f"integer expected, got {lhs} and {rhs}"
 
 
-@TypeRule
+@type_rule
 def intUnaopRule(ctx, ty):
     if ty == IntType():
         return IntType()
     return f"integer expected, got {ty}"
 
 
-@TypeRule
+@type_rule
 def ptrArithRule(ctx, lhs, rhs):
     if lhs == IntType() and isinstance(rhs, PtrType):
         return rhs
@@ -147,28 +158,28 @@ def ptrArithRule(ctx, lhs, rhs):
     return f"pointer and integer, got {lhs} and {rhs}"
 
 
-@TypeRule
+@type_rule
 def ptrDiffRule(ctx, lhs, rhs):
     if lhs == rhs and isinstance(rhs, PtrType):
         return IntType()
     return f"two pointers of the same type, got {lhs} and {rhs}"
 
 
-@TypeRule
+@type_rule
 def derefRule(ctx, ty):
     if isinstance(ty, PtrType):
         return ty.base
     return f"pointer expected, got {ty}"
 
 
-@TypeRule
+@type_rule
 def addrofRule(ctx, ty):
     if isinstance(ty, ArrayType):
         return "cannot take address of array type"
     return PtrType(ty)
 
 
-@TypeRule
+@type_rule
 def eqRule(ctx, lhs, rhs):
     if lhs != rhs:
         return f"cannot equate or compare {lhs} to {rhs}"
@@ -177,7 +188,7 @@ def eqRule(ctx, lhs, rhs):
     return IntType()
 
 
-@TypeRule
+@type_rule
 def relRule(ctx, lhs, rhs):
     if lhs != IntType():
         return f"int expected as relop lhs, found {lhs}"
@@ -186,7 +197,7 @@ def relRule(ctx, lhs, rhs):
     return IntType()
 
 
-@TypeRule
+@type_rule
 def asgnRule(ctx, lhs, rhs):
     if lhs != rhs:
         return f"cannot assign {rhs} to {lhs}"
@@ -195,21 +206,21 @@ def asgnRule(ctx, lhs, rhs):
     return lhs
 
 
-@TypeRule
+@type_rule
 def retRule(ctx, funcRetTy, ty):
     if funcRetTy != ty:
         return f"return {funcRetTy} expected, {ty} found"
     return VoidType()
 
 
-@TypeRule
+@type_rule
 def stmtCondRule(ctx, ty):
     if ty != IntType():
         return f"integer expected, {ty} found"
     return VoidType()
 
 
-@TypeRule
+@type_rule
 def arrayRule(ctx, arr, idx):
     if not isinstance(arr, ArrayType) and not isinstance(arr, PtrType):
         return f"array/pointer expected, {arr} found"

@@ -38,7 +38,7 @@ class FuncTypeInfo:
         return self.retTy == other.retTy and self.paramTy == other.paramTy
 
     def call(self):
-        @TypeRule
+        @type_rule
         def callRule(ctx, argTy: list):
             if self.paramTy == argTy:
                 return self.retTy
@@ -101,6 +101,11 @@ class Typer(MiniDecafVisitor):
             return ArrayType.make(base, dims)
 
     def _funcTypeInfo(self, ctx):
+        """
+
+        :param ctx:
+        :return: function type manager
+        """
         retTy = ctx.ty().accept(self)
         paramTy = self.paramTy(ctx.paramList())
         return FuncTypeInfo(retTy, paramTy)
@@ -355,6 +360,11 @@ class Locator(MiniDecafVisitor):
             return [ctx.cast()]
 
     def visitPostfixArray(self, ctx: MiniDecafParser.PostfixArrayContext):
+        """
+        reference to https://decaf-lang.github.io/minidecaf-tutorial/docs/ref/python-dzy.html#step11
+        :param ctx:
+        :return:
+        """
         fixupMult = self.typeInfo[ctx.postfix()].base.sizeof()
         return [ctx.postfix(), ctx.expr(), Const(fixupMult), Binary('*'), Binary('+')]
 
