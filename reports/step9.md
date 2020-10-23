@@ -12,8 +12,33 @@
 
 1. Q: MiniDecaf 的函数调用时参数求值的顺序是未定义行为。试写出一段 MiniDecaf 代码，使得不同的参数求值顺序会导致不同的返回结果。
 
-   A: 
+   A: 这段代码的返回值是0
 
+   ```c
+   int func(int a, int b) {
+       return a - b;
+   }
+   
+   int main() {
+       int a = 0;
+       return func(a, a = 1);
+   }
+   
+   ```
+   
+   更改了参数求值顺序，这段代码的返回值是1
+   
+   ```c
+   int func(int a, int b) {
+       return a - b;
+   }
+   
+   int main() {
+       int a = 0;
+       return func(a = 1, a);
+   }
+   ```
+   
    
 
 ### 复用代码情况
